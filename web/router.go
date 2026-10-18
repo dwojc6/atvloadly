@@ -102,6 +102,7 @@ func route(fi *fiber.App) {
 	// API route
 	api := fi.Group("/api")
 	registerSigningRoutes(api)
+	registerAppleIconRoutes(api)
 	api.Get("/hello", func(c *fiber.Ctx) error {
 		return c.SendString("hello world.")
 	})

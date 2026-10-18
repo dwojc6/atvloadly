@@ -104,7 +104,13 @@ atvloadly is a web service that supports sideloading app on Apple TV. It uses [I
 ### Custom app icon
 
 On the install page, use **App icon (optional)** to choose a PNG or JPEG before
-clicking **Install**. A preview shows the selected artwork; **Use original icon**
+clicking **Install**. Or expand **Find an icon on the App Store**, enter an app
+name such as Plex or Infuse, choose the two-letter store country, and click
+**Search**. On Apple TV, results use Apple's tvOS artwork; click **Use this icon**
+to select one. An App Store link or numeric ID also supports direct lookup.
+Apple may not return every TV-only app through name search, and availability
+varies by country. Search uses Apple's iTunes API, and artwork comes from
+Apple's image CDN. A preview shows the selected artwork; **Use original icon**
 clears the override. Images must be at most 4 MB and 4096 × 4096 pixels.
 The image is center-cropped to each icon size, with transparency filled black.
 
@@ -116,6 +122,9 @@ Apple ID and external certificate signing support custom icons, as do local
 IPAs, URLs and sources. The original IPA is kept, and the saved icon choice is
 reapplied on refreshes and source updates. Choose the original IPA again and
 clear the override to restore its icon on the next install.
+Selected Apple artwork is downloaded and saved with the app, so refreshes and
+updates don't require another search or a working artwork URL.
+
 The `/api/install` endpoint also accepts `custom_icon` as a base64 PNG/JPEG data URL.
 
 ### External certificate (P12) signing

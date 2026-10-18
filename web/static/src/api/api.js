@@ -1,6 +1,8 @@
 import request from "@/utils/request";
 
 export default {
+  searchAppleIcons: (params) => request({ url: '/api/icons/apple/search', method: 'get', params, timeout: 45000, silent: true }),
+  downloadAppleIcon: (url) => request({ url: '/api/icons/apple/artwork', method: 'post', data: { url }, timeout: 30000, silent: true }),
   syncLang: (params) => {
     return request({
       url: '/api/lang/sync',
