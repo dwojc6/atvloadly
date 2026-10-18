@@ -28,9 +28,12 @@ type InstalledApp struct {
 	BundleIdentifier string         `json:"bundle_identifier"`
 	Version          string         `json:"version"`
 	RemoveExtensions bool           `json:"remove_extensions"`
-	CustomName       string         `json:"custom_name,omitempty"`
-	Enabled          bool           `json:"enabled,omitempty"`
-	Source           AppSource      `gorm:"embedded;embeddedPrefix:source_" json:"source"`
+	// CustomIcon is the validated PNG/JPEG data URL reused when signing refreshes
+	// and source updates; empty restores the artwork from the original IPA.
+	CustomIcon string    `json:"custom_icon,omitempty"`
+	CustomName string    `json:"custom_name,omitempty"`
+	Enabled    bool      `json:"enabled,omitempty"`
+	Source     AppSource `gorm:"embedded;embeddedPrefix:source_" json:"source"`
 
 	// SigningMode is empty for records created before signing modes existed;
 	// use EffectiveSigningMode to read it.

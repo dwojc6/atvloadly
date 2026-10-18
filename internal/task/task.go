@@ -67,6 +67,7 @@ type installOperationKey struct {
 	// without it is two different apps, so both may be queued at once.
 	CustomIdentifier string
 	CustomName       string
+	CustomIcon       string
 	RemoveExtensions bool
 	SourceKind       string
 	SourceURL        string
@@ -307,6 +308,7 @@ func installKey(v model.InstalledApp) installOperationKey {
 		BundleIdentifier: v.BundleIdentifier,
 		CustomIdentifier: v.CustomIdentifier,
 		CustomName:       v.CustomName,
+		CustomIcon:       v.CustomIcon,
 		RemoveExtensions: v.RemoveExtensions,
 		SourceKind:       v.Source.Kind,
 		SourceURL:        v.Source.URL,
@@ -604,6 +606,7 @@ func (t *Task) runInternal(v model.InstalledApp, refresh bool, installMgr *manag
 		Port:             dev.Port,
 		IpaPath:          v.IpaPath,
 		CustomName:       v.CustomName,
+		CustomIcon:       v.CustomIcon,
 		CustomIdentifier: v.CustomIdentifier,
 		RemoveExtensions: v.RemoveExtensions,
 		RefreshMode:      refresh,

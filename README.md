@@ -101,6 +101,23 @@ atvloadly is a web service that supports sideloading app on Apple TV. It uses [I
 4. After successful pairing, return to the home page, where the connected `AppleTV` will be displayed.
 5. Click on the connected `AppleTV` to enter the sideload installation page, select the IPA file that needs to be sideloaded, and click `Install`.
 
+### Custom app icon
+
+On the install page, use **App icon (optional)** to choose a PNG or JPEG before
+clicking **Install**. A preview shows the selected artwork; **Use original icon**
+clears the override. Images must be at most 4 MB and 4096 × 4096 pixels.
+The image is center-cropped to each icon size, with transparency filled black.
+
+Apple TV's primary layered icon is replaced in the IPA's asset catalog before
+signing, using the new image as the background and clearing the foreground
+layers. This produces a flat custom icon while preserving the existing layer
+geometry. Other artwork, including top shelf images, stays unchanged. Both
+Apple ID and external certificate signing support custom icons, as do local
+IPAs, URLs and sources. The original IPA is kept, and the saved icon choice is
+reapplied on refreshes and source updates. Choose the original IPA again and
+clear the override to restore its icon on the next install.
+The `/api/install` endpoint also accepts `custom_icon` as a base64 PNG/JPEG data URL.
+
 ### External certificate (P12) signing
 
 If you already own a code signing certificate, you can import its `.p12` (with its password, which may be empty) and a matching `.mobileprovision` profile (a **tvOS** profile listing the Apple TV UDID for an Apple TV), then choose **External certificate** on the install page. No Apple ID is asked for or used. Apps signed this way are not refreshed automatically: they expire at the earlier of the certificate and profile expiries, and reinstalling with the same certificate and profile does not extend that date. After replacing the profile (or with a new identity), reinstall or update the app to apply the new expiry. They can be installed from and track a source (GitHub releases or AltStore), their updates being signed with the same identity.

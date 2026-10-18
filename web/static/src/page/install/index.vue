@@ -215,6 +215,9 @@
               />
             </div>
 
+            <CustomIconPicker v-model="form.custom_icon" :disabled="loading"
+              :is-tv="isAppleTV(device)" @busy="iconLoading = $event" />
+
             <div class="form-control">
               <label class="label" for="install-custom-identifier">
                 <span class="label-text">{{ $t("install.form.custom_identifier.label") }}</span>
@@ -517,6 +520,8 @@
 </template>
   
   <script>
+import CustomIconPicker from "@/components/CustomIconPicker.vue";
+
 import api from "@/api/api";
 import dayjs from "dayjs";
 import { toast } from "vue3-toastify";
@@ -570,7 +575,7 @@ function validCustomIdentifier(id) {
 }
 
 export default {
-  components: { SigningIssueList, SigningPlan, SourcePicker },
+  components: { SigningIssueList, SigningPlan, SourcePicker, CustomIconPicker },
   data() {
     return {
       id: "",
@@ -583,6 +588,7 @@ export default {
       ipa: {},
       device: {},
       loading: false,
+      iconLoading: false,
       websock: null,
       // Generation of the current install attempt. Every release of the
       // attempt bumps it, and guards after each await compare against it so
@@ -632,6 +638,7 @@ export default {
         account: "",
         password: "",
         custom_name: "",
+        custom_icon: "",
         remove_extensions: false,
         // Main bundle identifier of the signed app; empty keeps the identifiers
         // of the IPA. Synced on change, not on input, so that the compatibility
@@ -721,6 +728,7 @@ export default {
       return this.isExternal && hasWaivableEntitlementIssues(this.signing.check?.plan?.issues);
     },
     canInstall() {
+      if (this.iconLoading) return false;
       if (!this.isExternal) {
         return true;
       }
@@ -778,7 +786,7 @@ export default {
     this.externalIpaKey = "";
     // Custom name and bundle identifier prefilled from an earlier
     // installation of the chosen app; empty when nothing was prefilled.
-    this.prefilled = { custom_name: "", custom_identifier: "" };
+    this.prefilled = { custom_name: "", custom_identifier: "", custom_icon: "" };
     this.reportStream = createSigningReportStream();
 
     this.fetchData();
@@ -1146,6 +1154,7 @@ export default {
             bundle_identifier: _this.ipa.bundle_identifier,
             version: _this.ipa.version,
             custom_name: _this.form.custom_name.trim(),
+            custom_icon: _this.form.custom_icon,
             remove_extensions: _this.form.remove_extensions,
             custom_identifier: _this.form.custom_identifier,
             signing_mode: _this.signing.mode,
@@ -1335,6 +1344,7 @@ export default {
       this.recommendedAccount = account.email;
       this.form.account = account.email;
       this.prefill("custom_name", app.custom_name);
+      this.prefill("custom_icon", app.custom_icon);
       // An Apple ID install under a custom identifier is a different app from
       // the one installed without it: reusing the identifier reinstalls the
       // app the user picked instead of creating a second one.
@@ -1356,6 +1366,7 @@ export default {
       this.recommendedIdentityId = identity.id;
       this.signing.identityId = identity.id;
       this.prefill("custom_name", app.custom_name);
+      this.prefill("custom_icon", app.custom_icon);
       this.prefill("custom_identifier", app.custom_identifier);
       return true;
     },

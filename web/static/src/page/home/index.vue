@@ -919,6 +919,9 @@ export default {
       this.failedIcons[id] = true;
     },
     iconUrl(app) {
+      if (app.custom_icon) {
+        return app.custom_icon;
+      }
       if (app.icon) {
         return `/apps/${app.ID}/icon`;
       } else {

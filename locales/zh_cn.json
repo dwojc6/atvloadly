@@ -274,6 +274,13 @@
                 "last_used": "上次使用",
                 "alt": "为了帐号安全，请不要使用常用帐号安装"
             },
+            "custom_icon": {
+              "label": "应用图标（可选）",
+              "tips": "选择不超过 4 MB、4096 × 4096 像素的 PNG 或 JPEG。图片将居中裁剪。Apple TV 将在分层图标中使用平面图片。刷新和来源更新时会保留此选择。",
+              "preview": "所选应用图标",
+              "reset": "使用原始图标",
+              "invalid": "请选择不超过 4 MB、4096 × 4096 像素的有效 PNG 或 JPEG。"
+            },
             "custom_name": {
                 "label": "应用名称：",
                 "placeholder": "留空则使用应用自带的名称",

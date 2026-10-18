@@ -41,7 +41,7 @@ function page(upload = async () => [{ name: "app.ipa", path: "/tmp/app.ipa" }], 
     }),
   };
   const context = vm.createContext({
-    SigningIssueList: {}, SigningPlan: {}, SourcePicker: {},
+    SigningIssueList: {}, SigningPlan: {}, SourcePicker: {}, CustomIconPicker: {},
     WebSocket, createSigningReportStream, FormData, JSZip,
     parseBundleIdFromPlist: () => ipaBundleId,
     formatInstallFailureMessage: installFailureMessage,
@@ -403,4 +403,17 @@ test("previews the bundle identifier of a selected source build", async () => {
     build: { id: "1", name: "App", bundle_id: "com.example.source", version: "1.0" },
   });
   assert.equal(state.customIdentifierPlaceholder, "com.example.source");
+});
+
+test("sends the custom icon with the install and waits while it is loading", async () => {
+  const { state, sockets } = page();
+  state.form.custom_icon = "data:image/png;base64,TEST";
+  state.iconLoading = true;
+  await state.onSubmit();
+  assert.equal(sockets.length, 0);
+  state.iconLoading = false;
+  const pending = state.onSubmit();
+  sockets[0].open();
+  await pending;
+  assert.equal(JSON.parse(sockets[0].sent[0].d).custom_icon, state.form.custom_icon);
 });

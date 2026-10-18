@@ -476,6 +476,12 @@ func route(fi *fiber.App) {
 		ipaURL := strings.TrimSpace(c.FormValue("url"))
 		deviceID := strings.TrimSpace(c.FormValue("device_id"))
 		customName := strings.TrimSpace(c.FormValue("custom_name"))
+		customIcon := c.FormValue("custom_icon")
+		if customIcon != "" {
+			if _, err := ipa.DecodeCustomIcon(customIcon); err != nil {
+				return c.Status(http.StatusOK).JSON(apiError(err.Error()))
+			}
+		}
 		customIdentifier := strings.TrimSpace(c.FormValue("custom_identifier"))
 		removeExt := c.FormValue("remove_extensions") == "true"
 
@@ -601,6 +607,7 @@ func route(fi *fiber.App) {
 			Account:                  account,
 			Enabled:                  true,
 			CustomName:               customName,
+			CustomIcon:               customIcon,
 			RemoveExtensions:         removeExt,
 			SigningMode:              signingMode,
 			SigningIdentityID:        signingIdentityID,

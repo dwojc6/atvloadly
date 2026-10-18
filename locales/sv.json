@@ -273,6 +273,13 @@
         "last_used": "Senast använt",
         "alt": "Använd inte ditt huvudsakliga Apple-konto för installationer av säkerhetsskäl."
       },
+      "custom_icon": {
+        "label": "Appikon (valfritt)",
+        "tips": "Välj PNG eller JPEG på högst 4 MB och 4096 × 4096 pixlar. Bilden beskärs centrerat. Apple TV använder en platt bild i sin lagerikon. Valet sparas för förnyelser och källuppdateringar.",
+        "preview": "Vald appikon",
+        "reset": "Använd originalikonen",
+        "invalid": "Välj en giltig PNG eller JPEG på högst 4 MB och 4096 × 4096 pixlar."
+      },
       "custom_name": {
         "label": "Appnamn:",
         "placeholder": "Lämna tomt för att behålla appens namn",

@@ -274,6 +274,13 @@
                 "last_used": "Last used",
                 "alt": "For account security, please do not use your primary account for installation."
             },
+            "custom_icon": {
+              "label": "App icon (optional)",
+              "tips": "Choose a PNG or JPEG up to 4 MB and 4096 × 4096 pixels. The image is center-cropped to fit. Apple TV uses a flat image in its layered icon. Your choice is kept for refreshes and source updates.",
+              "preview": "Selected app icon",
+              "reset": "Use original icon",
+              "invalid": "Choose a valid PNG or JPEG up to 4 MB and 4096 × 4096 pixels."
+            },
             "custom_name": {
                 "label": "App Name:",
                 "placeholder": "Leave blank to keep the app's own name",

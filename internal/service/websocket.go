@@ -116,6 +116,11 @@ func validateInstallRequest(v *model.InstalledApp) error {
 	if v.SigningMode != "" && !v.SigningMode.IsValid() {
 		return fmt.Errorf("invalid signing mode: %q", v.SigningMode)
 	}
+	if v.CustomIcon != "" {
+		if _, err := ipa.DecodeCustomIcon(v.CustomIcon); err != nil {
+			return err
+		}
+	}
 	v.SigningMode = v.EffectiveSigningMode()
 	v.CustomIdentifier = strings.TrimSpace(v.CustomIdentifier)
 	switch v.SigningMode {
@@ -241,6 +246,7 @@ func runInstallMessage(mgr *manager.WebsocketManager, installMgr *manager.Instal
 		Port:                    dev.Port,
 		IpaPath:                 ipaPath,
 		CustomName:              v.CustomName,
+		CustomIcon:              v.CustomIcon,
 		CustomIdentifier:        v.CustomIdentifier,
 		RemoveExtensions:        v.RemoveExtensions,
 		RefreshMode:             false,

@@ -273,6 +273,13 @@
         "last_used": "Poslednji korišćen",
         "alt": "Radi bezbednosti naloga, nemojte koristiti svoj glavni nalog za instalaciju."
       },
+      "custom_icon": {
+        "label": "Ikona aplikacije (opciono)",
+        "tips": "Izaberite PNG ili JPEG do 4 MB i 4096 × 4096 piksela. Slika se iseca po sredini. Apple TV koristi ravnu sliku u slojevitoj ikoni. Izbor se čuva za osvežavanja i ažuriranja iz izvora.",
+        "preview": "Izabrana ikona aplikacije",
+        "reset": "Koristi originalnu ikonu",
+        "invalid": "Izaberite ispravan PNG ili JPEG do 4 MB i 4096 × 4096 piksela."
+      },
       "custom_name": {
         "label": "Naziv aplikacije:",
         "placeholder": "Ostavite prazno da zadržite originalni naziv aplikacije",

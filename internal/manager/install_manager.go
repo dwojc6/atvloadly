@@ -14,6 +14,7 @@ import (
 
 	"github.com/bitxeno/atvloadly/internal/app"
 	execx "github.com/bitxeno/atvloadly/internal/exec"
+	"github.com/bitxeno/atvloadly/internal/ipa"
 	"github.com/bitxeno/atvloadly/internal/log"
 	"github.com/bitxeno/atvloadly/internal/model"
 	"github.com/bitxeno/atvloadly/internal/utils"
@@ -57,6 +58,8 @@ type InstallOptions struct {
 	Account    string
 	IpaPath    string
 	CustomName string
+	// CustomIcon is a PNG/JPEG data URL applied before the signing engine runs.
+	CustomIcon string
 	// CustomIdentifier is the main bundle identifier the app is installed
 	// under, in both signing modes; empty keeps the bundle identifiers of the
 	// IPA. The app is a different app on the device for each identifier.
@@ -122,6 +125,14 @@ func (t *InstallManager) TryStart(ctx context.Context, opts InstallOptions) erro
 // External certificate failures are *signing.Error values classified from
 // the engine output.
 func (t *InstallManager) Start(ctx context.Context, opts InstallOptions) error {
+	if opts.CustomIcon != "" {
+		patched, err := ipa.WithCustomIcon(opts.IpaPath, opts.CustomIcon)
+		if err != nil {
+			return fmt.Errorf("prepare custom app icon: %w", err)
+		}
+		defer func() { _ = os.Remove(patched) }()
+		opts.IpaPath = patched
+	}
 	switch opts.SigningMode.OrDefault() {
 	case model.SigningModeAppleID:
 		return t.startAppleID(ctx, opts)
