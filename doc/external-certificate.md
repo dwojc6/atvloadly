@@ -249,8 +249,11 @@ IPA URL mode remains Apple ID only.
 AltStore sources offer an **App name filter (regex)** alongside the bundle
 identifier. Selecting an app fills an exact name pattern; edit it to constrain
 the variant tracked for updates. For libraries publishing versions as separate
-entries with the same name and bundle identifier, updates select the uniquely
-newest dated entry. Different names or tied dates remain ambiguous. Leaving the
+entries, updates select the uniquely newest dated entry matching both the
+name regex and bundle identifier. The name may contain a changing version; for
+example, `(?i)^RyukGram \(IG [0-9]+ [0-9]+ [0-9]+\) \[@ipavault\]$` tracks
+RyukGram across Instagram versions. A broad pattern can match other variants,
+so include the variant name you want. Tied dates remain ambiguous. Leaving the
 pattern blank tracks by bundle identifier alone.
 
 Apps installed from a source, or linked to one from the home page (**Track

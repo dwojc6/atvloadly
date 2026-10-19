@@ -233,7 +233,7 @@
                 },
                 "name_filter": {
                     "label": "App name filter (regex)",
-                    "tips": "Matches the app name in this AltStore source, in addition to its bundle identifier. Updates use the newest dated entry of the same name. Leave blank to use only the bundle identifier.",
+                    "tips": "Matches the app name in this AltStore source, in addition to its bundle identifier. Updates use the newest dated entry matching this regex; names may include changing versions. Leave blank to use only the bundle identifier.",
                     "mismatch": "The app name filter is invalid or does not match the selected app."
                 },
                 "bundle_id": {

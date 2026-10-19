@@ -295,10 +295,11 @@ func TestAltStoreAppNameFilter(t *testing.T) {
 	if err != nil || b.Version != "47" {
 		t.Fatalf("Latest = %+v, %v; want version 47 of the named variant", b, err)
 	}
-	for _, pattern := range []string{"", "(?i)tiktok"} {
-		if _, err := feed.Latest("com.example.tiktok", false, "iPhone", pattern); !errors.Is(err, ErrAmbiguous) {
-			t.Fatalf("Latest(%q) = %v, want ambiguity", pattern, err)
-		}
+	if _, err := feed.Latest("com.example.tiktok", false, "iPhone", ""); !errors.Is(err, ErrAmbiguous) {
+		t.Fatalf("Latest without a name regex = %v, want ambiguity", err)
+	}
+	if b, err := feed.Latest("com.example.tiktok", false, "iPhone", "(?i)tiktok"); err != nil || b.Version != "99" {
+		t.Fatalf("Latest with a broad regex = %+v, %v; want newest matching entry", b, err)
 	}
 	if _, err := feed.Latest("com.example.tiktok", false, "iPhone", "missing"); !errors.Is(err, ErrNoMatch) {
 		t.Fatalf("unmatched name: %v", err)
@@ -318,6 +319,43 @@ func TestAltStoreNameFilterDoesNotGuessEqualDates(t *testing.T) {
 			t.Fatal(err)
 		}
 		if _, err := feed.Latest("com.example.app", false, "iPhone", "^App$"); !errors.Is(err, ErrAmbiguous) {
+			t.Fatalf("date %q: %v, want ambiguity", date, err)
+		}
+	}
+}
+
+func TestAltStoreNameRegexSelectsNewestChangingVersion(t *testing.T) {
+	// Put versions in reverse order so selection cannot depend on source order.
+	entries := []string{}
+	for version := 452; version >= 441; version-- {
+		entries = append(entries, fmt.Sprintf(`{"name":"RyukGram (IG %d 0 0) [@ipavault]","bundleIdentifier":"com.burbn.instagram","version":"%d.0.0","versionDate":"2026-10-%02d","downloadURL":"https://example.com/ryukgram-%d.ipa"}`, version, version, version-440, version))
+	}
+	entries = append(entries,
+		`{"name":"Instagram Other","bundleIdentifier":"com.burbn.instagram","version":"999","versionDate":"2026-10-20","downloadURL":"https://example.com/other.ipa"}`,
+		`{"name":"RyukGram (IG 999 0 0) [@ipavault]","bundleIdentifier":"com.example.other","version":"999","versionDate":"2026-10-21","downloadURL":"https://example.com/unrelated.ipa"}`)
+	feed, err := Fetch(KindAltStore, serveSource(t, `{"apps":[`+strings.Join(entries, ",")+`]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	pattern := `(?i)^RyukGram \(IG [0-9]+ [0-9]+ [0-9]+\) \[@ipavault\]$`
+	b, err := feed.Latest("com.burbn.instagram", false, "iPhone", pattern)
+	if err != nil || b.Version != "452.0.0" {
+		t.Fatalf("Latest = %+v, %v; want the newest of 12 matching RyukGram versions", b, err)
+	}
+	if _, err := feed.Latest("com.burbn.instagram", false, "iPhone", ""); !errors.Is(err, ErrAmbiguous) {
+		t.Fatalf("without regex: %v, want ambiguity", err)
+	}
+}
+
+func TestAltStoreChangingNamesWithEqualDatesStayAmbiguous(t *testing.T) {
+	for _, date := range []string{"", "2026-10-19"} {
+		feed, err := Fetch(KindAltStore, serveSource(t, fmt.Sprintf(`{"apps":[
+   {"name":"RyukGram (IG 452 0 0) [@ipavault]","bundleIdentifier":"com.burbn.instagram","version":"452","versionDate":%q,"downloadURL":"https://example.com/452.ipa"},
+   {"name":"RyukGram (IG 453 0 0) [@ipavault]","bundleIdentifier":"com.burbn.instagram","version":"453","versionDate":%q,"downloadURL":"https://example.com/453.ipa"}]}`, date, date)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := feed.Latest("com.burbn.instagram", false, "iPhone", `(?i)^RyukGram \(IG [0-9]+ [0-9]+ [0-9]+\) \[@ipavault\]$`); !errors.Is(err, ErrAmbiguous) {
 			t.Fatalf("date %q: %v, want ambiguity", date, err)
 		}
 	}

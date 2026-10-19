@@ -232,7 +232,7 @@
         },
         "name_filter": {
             "label": "Filter naziva aplikacije (regex)",
-            "tips": "Pored identifikatora paketa, proverava naziv aplikacije u ovom AltStore izvoru. Ažuriranja koriste najnoviji datirani unos istog naziva. Ostavite prazno za izbor samo po identifikatoru paketa.",
+            "tips": "Pored identifikatora paketa, proverava naziv aplikacije u ovom AltStore izvoru. Ažuriranja koriste najnoviji datirani unos koji odgovara ovom regex filteru; naziv može da sadrži promenljive brojeve verzije. Ostavite prazno za izbor samo po identifikatoru paketa.",
             "mismatch": "Filter naziva aplikacije nije ispravan ili ne odgovara izabranoj aplikaciji."
         },
         "bundle_id": {

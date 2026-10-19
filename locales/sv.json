@@ -232,7 +232,7 @@
         },
         "name_filter": {
             "label": "Appnamnsfilter (regex)",
-            "tips": "Matchar appnamnet i denna AltStore-källa utöver paketidentifieraren. Uppdateringar använder den senast daterade posten med samma namn. Lämna tomt för att bara använda paketidentifieraren.",
+            "tips": "Matchar appnamnet i denna AltStore-källa utöver paketidentifieraren. Uppdateringar använder den senast daterade posten som matchar detta regex; namnet kan innehålla ändrade versionsnummer. Lämna tomt för att bara använda paketidentifieraren.",
             "mismatch": "Appnamnsfiltret är ogiltigt eller matchar inte den valda appen."
         },
         "bundle_id": {

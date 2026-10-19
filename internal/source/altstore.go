@@ -201,8 +201,8 @@ func (f *altStoreFeed) Preview(deviceClass string, _ bool) (*Preview, error) {
 
 // Latest returns the newest version of the app whose bundle identifier is
 // filter, constrained by an optional app-name regex. When several apps of the
-// source use it, the device platform and a uniquely newest date of identically
-// named entries can resolve the selection.
+// source use it, the device platform and a uniquely newest date among entries
+// matching that regex can resolve the selection.
 func (f *altStoreFeed) Latest(filter string, _ bool, deviceClass string, nameFilter string) (Build, error) {
 	if err := ValidateNameFilter(nameFilter); err != nil {
 		return Build{}, err
@@ -232,7 +232,7 @@ func (f *altStoreFeed) Latest(filter string, _ bool, deviceClass string, nameFil
 		}
 	}
 	if nameFilter != "" {
-		matches = newestNamedEntry(matches)
+		matches = newestMatchingEntry(matches)
 	}
 	switch {
 	case len(matches) == 0:
@@ -246,17 +246,14 @@ func (f *altStoreFeed) Latest(filter string, _ bool, deviceClass string, nameFil
 	}
 }
 
-// newestNamedEntry handles libraries listing each version as a separate app.
-// Only identically named entries with one uniquely newest date can be merged.
-func newestNamedEntry(entries []altStoreEntry) []altStoreEntry {
+// newestMatchingEntry chooses the uniquely newest entry already matched by the
+// saved bundle identifier and name regex. Names may contain changing versions.
+func newestMatchingEntry(entries []altStoreEntry) []altStoreEntry {
 	if len(entries) < 2 {
 		return entries
 	}
 	newest := entries[0]
 	for _, entry := range entries[1:] {
-		if entry.builds[0].Name != newest.builds[0].Name {
-			return entries
-		}
 		if entry.builds[0].Date.After(newest.builds[0].Date) {
 			newest = entry
 		}

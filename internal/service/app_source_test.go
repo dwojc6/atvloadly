@@ -803,3 +803,43 @@ func TestAltStoreNameFilterPersistsAndConstrainsUpdates(t *testing.T) {
 		t.Fatalf("explicitly clear name filter: %v", err)
 	}
 }
+
+func TestSourceUpdatesAcrossVersionedAppNames(t *testing.T) {
+	setupTestDB(t)
+	u, _ := serveSource(t, `{"apps":[
+ {"name":"RyukGram (IG 452 0 0) [@ipavault]","bundleIdentifier":"com.burbn.instagram","version":"452.0.0","versionDate":"2026-10-18","downloadURL":"https://example.com/452.ipa"},
+ {"name":"RyukGram (IG 453 1 2) [@ipavault]","bundleIdentifier":"com.burbn.instagram","version":"453.1.2","versionDate":"2026-10-19","downloadURL":"https://example.com/453.ipa"}]}`)
+	feed, err := source.Fetch(source.KindAltStore, u)
+	if err != nil {
+		t.Fatal(err)
+	}
+	preview, err := feed.Preview("iPhone", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := preview.Builds[0]
+	pattern := `(?i)^RyukGram \(IG [0-9]+ [0-9]+ [0-9]+\) \[@ipavault\]$`
+	v := model.InstalledApp{IpaName: "Instagram", UDID: "iphone", DeviceClass: "iPhone", BundleIdentifier: "com.burbn.instagram", Source: model.AppSource{
+		Kind: source.KindAltStore, URL: u, Filter: "com.burbn.instagram", NameFilter: pattern, AutoUpdate: true, BuildID: old.ID}}
+	if err := ResolveSourceInstall(&v); err != nil {
+		t.Fatal(err)
+	}
+	installed := createApp(t, v)
+	checked := CheckSourceUpdates([]model.InstalledApp{installed})
+	if len(checked.Updates) != 1 || checked.Updates[0].Source.Version != "453.1.2" {
+		t.Fatalf("updates = %+v; want new RyukGram version", checked.Updates)
+	}
+	target, err := PrepareSourceUpdate(installed.ID, "", "", nil)
+	if err != nil || target.Source.Version != "453.1.2" || target.Source.NameFilter != pattern || !target.Source.AutoUpdate {
+		t.Fatalf("prepare update = %+v, %v", target.Source, err)
+	}
+	if got := mustGetApp(t, installed.ID).Source; got.Version != "452.0.0" || got.CheckError != "" || got.LatestVersion != "453.1.2" {
+		t.Fatalf("stored source before installation = %+v", got)
+	}
+	// Recording the installed update clears the available-update warning.
+	updated := createApp(t, target)
+	checked = CheckSourceUpdates([]model.InstalledApp{updated})
+	if len(checked.Updates) != 0 || mustGetApp(t, updated.ID).Source.LatestBuildID != "" {
+		t.Fatal("installed latest version still offered as an update")
+	}
+}
