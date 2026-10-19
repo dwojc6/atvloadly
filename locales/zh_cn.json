@@ -231,6 +231,11 @@
                     "reset": "重置",
                     "mismatch": "过滤规则与所选文件不匹配。"
                 },
+                "name_filter": {
+                    "label": "应用名称过滤器（正则表达式）",
+                    "tips": "在此 AltStore 源中，除软件包标识符外，还匹配应用名称。更新使用同名应用中日期最新的条目。留空则仅使用软件包标识符。",
+                    "mismatch": "应用名称过滤器无效或与所选应用不匹配。"
+                },
                 "bundle_id": {
                     "label": "Bundle Identifier",
                     "tips": "AltStore 应用按 Bundle Identifier 跟踪。"

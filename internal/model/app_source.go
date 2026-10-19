@@ -7,6 +7,7 @@ import "time"
 type AppSource struct {
 	Kind       string `json:"kind"`        // "github", "altstore" or ""
 	URL        string `json:"url"`         // GitHub "owner/repo"; AltStore source URL
+	NameFilter string `json:"name_filter"` // optional AltStore app-name regexp, in addition to the bundle identifier
 	Filter     string `json:"filter"`      // GitHub asset-name regexp; AltStore bundle identifier
 	Prerelease bool   `json:"prerelease"`  // GitHub only: also consider pre-releases
 	AutoUpdate bool   `json:"auto_update"` // install newer builds during the scheduled refresh window

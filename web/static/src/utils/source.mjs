@@ -149,3 +149,13 @@ export function installLinkFilter(source, selection, autoUpdate) {
 export function updateFailed(source) {
   return !!source?.failed_build_id && source.failed_build_id === source.latest_build_id;
 }
+
+// nameMatches applies the optional AltStore app-name regex, in addition to its bundle ID.
+export function nameMatches(filter, build) {
+  return !filter || filterMatches("github", filter, build);
+}
+
+// deriveNameFilter keeps one named variant while its version changes.
+export function deriveNameFilter(name) {
+  return "(?i)^" + String(name).replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$";
+}

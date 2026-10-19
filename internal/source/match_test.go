@@ -120,7 +120,7 @@ func TestDeriveFilterUnmarkedVariant(t *testing.T) {
 
 	// In release v1.3 the filter still selects the unmarked build on an Apple TV.
 	f := &githubFeed{repo: "owner/app", releases: []githubRelease{release("v1.3", false, asset(1, "App-1.3.ipa"), asset(2, "App-1.3-iOS.ipa"))}}
-	b, err := f.Latest(DeriveFilter("App-1.2.ipa", []string{"App-1.2.ipa", "App-1.2-iOS.ipa"}), false, "AppleTV")
+	b, err := f.Latest(DeriveFilter("App-1.2.ipa", []string{"App-1.2.ipa", "App-1.2-iOS.ipa"}), false, "AppleTV", "")
 	if err != nil || b.Name != "App-1.3.ipa" {
 		t.Fatalf("Latest = %+v, %v; want App-1.3.ipa", b, err)
 	}
@@ -144,7 +144,7 @@ func TestDeriveFilterNumberedVariants(t *testing.T) {
 
 	// Latest finds the picked variant instead of reporting several matches.
 	f := &githubFeed{repo: "owner/kodi", releases: []githubRelease{release("v21.1", false, asset(1, "Kodi-21.1-tvOS.ipa"), asset(2, "Kodi-20.5-tvOS.ipa"))}}
-	b, err := f.Latest(DeriveFilter("Kodi-20.5-tvOS.ipa", []string{"Kodi-21.1-tvOS.ipa", "Kodi-20.5-tvOS.ipa"}), false, "AppleTV")
+	b, err := f.Latest(DeriveFilter("Kodi-20.5-tvOS.ipa", []string{"Kodi-21.1-tvOS.ipa", "Kodi-20.5-tvOS.ipa"}), false, "AppleTV", "")
 	if err != nil || b.Name != "Kodi-20.5-tvOS.ipa" {
 		t.Fatalf("Latest = %+v, %v; want Kodi-20.5-tvOS.ipa", b, err)
 	}

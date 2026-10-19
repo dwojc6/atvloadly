@@ -819,8 +819,9 @@ func route(fi *fiber.App) {
 		}
 
 		var req struct {
-			BuildID string `json:"build_id"`
-			Filter  string `json:"filter"`
+			BuildID    string  `json:"build_id"`
+			Filter     string  `json:"filter"`
+			NameFilter *string `json:"name_filter"`
 		}
 		if len(c.Body()) > 0 {
 			if err := c.BodyParser(&req); err != nil {
@@ -828,7 +829,7 @@ func route(fi *fiber.App) {
 			}
 		}
 
-		target, err := service.PrepareSourceUpdate(uint(id), req.BuildID, req.Filter)
+		target, err := service.PrepareSourceUpdate(uint(id), req.BuildID, req.Filter, req.NameFilter)
 		if err != nil {
 			return c.Status(http.StatusOK).JSON(apiError(err.Error()))
 		}

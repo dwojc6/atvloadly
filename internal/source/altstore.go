@@ -200,12 +200,16 @@ func (f *altStoreFeed) Preview(deviceClass string, _ bool) (*Preview, error) {
 }
 
 // Latest returns the newest version of the app whose bundle identifier is
-// filter. When several apps of the source use it (the iOS and tvOS builds of
-// one app), the platform of the device picks one.
-func (f *altStoreFeed) Latest(filter string, _ bool, deviceClass string) (Build, error) {
+// filter, constrained by an optional app-name regex. When several apps of the
+// source use it, the device platform and a uniquely newest date of identically
+// named entries can resolve the selection.
+func (f *altStoreFeed) Latest(filter string, _ bool, deviceClass string, nameFilter string) (Build, error) {
+	if err := ValidateNameFilter(nameFilter); err != nil {
+		return Build{}, err
+	}
 	var matches []altStoreEntry
 	for _, e := range f.entries {
-		if e.bundleID == filter {
+		if e.bundleID == filter && (nameFilter == "" || (len(e.builds) > 0 && NameMatches(nameFilter, e.builds[0]))) {
 			matches = append(matches, e)
 		}
 	}
@@ -227,6 +231,9 @@ func (f *altStoreFeed) Latest(filter string, _ bool, deviceClass string) (Build,
 			matches = compatibles
 		}
 	}
+	if nameFilter != "" {
+		matches = newestNamedEntry(matches)
+	}
 	switch {
 	case len(matches) == 0:
 		return Build{}, fmt.Errorf("%w: app %s not found in the source", ErrNoMatch, filter)
@@ -237,6 +244,29 @@ func (f *altStoreFeed) Latest(filter string, _ bool, deviceClass string) (Build,
 	default:
 		return matches[0].builds[0], nil
 	}
+}
+
+// newestNamedEntry handles libraries listing each version as a separate app.
+// Only identically named entries with one uniquely newest date can be merged.
+func newestNamedEntry(entries []altStoreEntry) []altStoreEntry {
+	if len(entries) < 2 {
+		return entries
+	}
+	newest := entries[0]
+	for _, entry := range entries[1:] {
+		if entry.builds[0].Name != newest.builds[0].Name {
+			return entries
+		}
+		if entry.builds[0].Date.After(newest.builds[0].Date) {
+			newest = entry
+		}
+	}
+	for _, entry := range entries {
+		if entry.builds[0].ID != newest.builds[0].ID && !newest.builds[0].Date.After(entry.builds[0].Date) {
+			return entries
+		}
+	}
+	return []altStoreEntry{newest}
 }
 
 // Find returns the version with id of any app of the source.

@@ -2,6 +2,7 @@ package source
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -81,11 +82,11 @@ func TestAltStoreNuvio(t *testing.T) {
 		t.Fatalf("unexpected build %+v", b)
 	}
 
-	latest, err := feed.Latest("com.pyksel.nuviotvos", false, "AppleTV")
+	latest, err := feed.Latest("com.pyksel.nuviotvos", false, "AppleTV", "")
 	if err != nil || latest.ID != b.ID {
 		t.Fatalf("Latest = %+v, %v", latest, err)
 	}
-	if _, err := feed.Latest("com.other.app", false, "AppleTV"); !errors.Is(err, ErrNoMatch) {
+	if _, err := feed.Latest("com.other.app", false, "AppleTV", ""); !errors.Is(err, ErrNoMatch) {
 		t.Fatalf("Latest(other) = %v, want ErrNoMatch", err)
 	}
 
@@ -116,7 +117,7 @@ func TestAltStoreNuvio(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if b2, err := again.Latest("com.pyksel.nuviotvos", false, ""); err != nil || b2.ID != b.ID {
+	if b2, err := again.Latest("com.pyksel.nuviotvos", false, "", ""); err != nil || b2.ID != b.ID {
 		t.Fatalf("second fetch Latest = %+v, %v", b2, err)
 	}
 }
@@ -131,7 +132,7 @@ func TestAltStoreLegacyApp(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Fetch: %v", err)
 	}
-	b, err := feed.Latest("com.example.old", false, "")
+	b, err := feed.Latest("com.example.old", false, "", "")
 	if err != nil {
 		t.Fatalf("Latest: %v", err)
 	}
@@ -139,7 +140,7 @@ func TestAltStoreLegacyApp(t *testing.T) {
 		!b.Date.Equal(time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC)) {
 		t.Fatalf("unexpected build %+v", b)
 	}
-	if _, err := feed.Latest("com.example.none", false, ""); !errors.Is(err, ErrNoMatch) {
+	if _, err := feed.Latest("com.example.none", false, "", ""); !errors.Is(err, ErrNoMatch) {
 		t.Fatalf("Latest(no version) = %v, want ErrNoMatch", err)
 	}
 
@@ -177,11 +178,11 @@ func TestAltStoreSeveralApps(t *testing.T) {
 	}
 	// The platform of the device picks the app among those using the bundle.
 	for deviceClass, want := range map[string]string{"AppleTV": "App TV", "iPhone": "App iOS"} {
-		if b, err := feed.Latest("com.example.app", false, deviceClass); err != nil || b.Name != want {
+		if b, err := feed.Latest("com.example.app", false, deviceClass, ""); err != nil || b.Name != want {
 			t.Fatalf("Latest(%s) = %+v, %v; want %s", deviceClass, b, err, want)
 		}
 	}
-	if _, err := feed.Latest("com.example.app", false, ""); !errors.Is(err, ErrAmbiguous) {
+	if _, err := feed.Latest("com.example.app", false, "", ""); !errors.Is(err, ErrAmbiguous) {
 		t.Fatalf("Latest(unknown device) = %v, want ErrAmbiguous", err)
 	}
 
@@ -193,7 +194,7 @@ func TestAltStoreSeveralApps(t *testing.T) {
 	if feed, err = Fetch(KindAltStore, u); err != nil {
 		t.Fatalf("Fetch: %v", err)
 	}
-	if _, err := feed.Latest("com.example.app", false, "AppleTV"); !errors.Is(err, ErrAmbiguous) {
+	if _, err := feed.Latest("com.example.app", false, "AppleTV", ""); !errors.Is(err, ErrAmbiguous) {
 		t.Fatalf("Latest = %v, want ErrAmbiguous", err)
 	}
 }
@@ -215,7 +216,7 @@ func TestAltStoreSkipsLocalDownloads(t *testing.T) {
 	if len(builds) != 1 || builds[0].Version != "1" {
 		t.Fatalf("builds = %+v, want only version 1", builds)
 	}
-	if b, err := feed.Latest("com.example.app", false, "AppleTV"); err != nil || b.DownloadURL != "HTTPS://example.com/App-1.ipa" {
+	if b, err := feed.Latest("com.example.app", false, "AppleTV", ""); err != nil || b.DownloadURL != "HTTPS://example.com/App-1.ipa" {
 		t.Fatalf("Latest = %+v, %v", b, err)
 	}
 }
@@ -274,6 +275,50 @@ func TestParseAltStoreDate(t *testing.T) {
 	for _, c := range cases {
 		if got := parseAltStoreDate(c.in); !got.Equal(c.want) {
 			t.Errorf("parseAltStoreDate(%q) = %v, want %v", c.in, got, c.want)
+		}
+	}
+}
+
+func TestAltStoreAppNameFilter(t *testing.T) {
+	u := serveSource(t, `{"name":"Library","apps":[
+ {"name":"TikTok (Infinitok) [@ipavault]","bundleIdentifier":"com.example.tiktok","version":"46","versionDate":"2026-09-01","downloadURL":"https://example.com/old.ipa"},
+ {"name":"TikTok Other","bundleIdentifier":"com.example.tiktok","version":"99","versionDate":"2026-10-20","downloadURL":"https://example.com/other.ipa"},
+ {"name":"TikTok (Infinitok) [@ipavault]","bundleIdentifier":"com.example.tiktok","version":"47","versionDate":"2026-10-19","downloadURL":"https://example.com/new.ipa"},
+ {"name":"TikTok (Infinitok) [@ipavault]","bundleIdentifier":"com.example.unrelated","version":"100","versionDate":"2026-10-21","downloadURL":"https://example.com/unrelated.ipa"}
+ ]}`)
+	feed, err := Fetch(KindAltStore, u)
+	if err != nil {
+		t.Fatal(err)
+	}
+	filter := `(?i)^TikTok \(Infinitok\) \[@ipavault\]$`
+	b, err := feed.Latest("com.example.tiktok", false, "iPhone", filter)
+	if err != nil || b.Version != "47" {
+		t.Fatalf("Latest = %+v, %v; want version 47 of the named variant", b, err)
+	}
+	for _, pattern := range []string{"", "(?i)tiktok"} {
+		if _, err := feed.Latest("com.example.tiktok", false, "iPhone", pattern); !errors.Is(err, ErrAmbiguous) {
+			t.Fatalf("Latest(%q) = %v, want ambiguity", pattern, err)
+		}
+	}
+	if _, err := feed.Latest("com.example.tiktok", false, "iPhone", "missing"); !errors.Is(err, ErrNoMatch) {
+		t.Fatalf("unmatched name: %v", err)
+	}
+	if _, err := feed.Latest("com.example.tiktok", false, "iPhone", "("); err == nil {
+		t.Fatal("accepted invalid regex")
+	}
+}
+
+func TestAltStoreNameFilterDoesNotGuessEqualDates(t *testing.T) {
+	for _, date := range []string{"", "2026-10-19"} {
+		u := serveSource(t, fmt.Sprintf(`{"apps":[
+  {"name":"App","bundleIdentifier":"com.example.app","version":"1","versionDate":%q,"downloadURL":"https://example.com/one.ipa"},
+  {"name":"App","bundleIdentifier":"com.example.app","version":"2","versionDate":%q,"downloadURL":"https://example.com/two.ipa"}]}`, date, date))
+		feed, err := Fetch(KindAltStore, u)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := feed.Latest("com.example.app", false, "iPhone", "^App$"); !errors.Is(err, ErrAmbiguous) {
+			t.Fatalf("date %q: %v, want ambiguity", date, err)
 		}
 	}
 }

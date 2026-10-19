@@ -230,6 +230,11 @@
           "reset": "Återställ",
           "mismatch": "Filtret matchar inte den valda filen."
         },
+        "name_filter": {
+            "label": "Appnamnsfilter (regex)",
+            "tips": "Matchar appnamnet i denna AltStore-källa utöver paketidentifieraren. Uppdateringar använder den senast daterade posten med samma namn. Lämna tomt för att bara använda paketidentifieraren.",
+            "mismatch": "Appnamnsfiltret är ogiltigt eller matchar inte den valda appen."
+        },
         "bundle_id": {
           "label": "Paketidentifierare",
           "tips": "AltStore-appar följs via sin paketidentifierare."

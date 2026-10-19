@@ -1088,6 +1088,7 @@ export default {
             kind: selection.kind,
             url: selection.url,
             filter: selection.filter,
+            name_filter: selection.name_filter,
             prerelease: selection.prerelease,
             auto_update: _this.form.auto_update,
             build_id: build.id,

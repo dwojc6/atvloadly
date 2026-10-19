@@ -169,7 +169,7 @@
         $t("install.form.source.no_match")
       }}</span>
 
-      <div class="atv-source-advanced p-3" v-if="preview.kind === 'github' || selectedBuild">
+      <div class="atv-source-advanced p-3" v-if="preview">
         <div>
           <template v-if="preview.kind === 'github'">
             <label class="label gap-x-2">
@@ -206,6 +206,22 @@
             <label class="label">
               <span class="label-text-alt whitespace-normal">{{ $t("install.form.source.bundle_id.tips") }}</span>
             </label>
+            <label class="label" :for="`${radioName}-name-filter`">
+              <span class="label-text">{{ $t('install.form.source.name_filter.label') }}</span>
+            </label>
+            <input :id="`${radioName}-name-filter`" type="text"
+              class="input input-bordered w-full font-mono text-sm" v-model="nameFilter"
+              autocomplete="off" autocapitalize="off" spellcheck="false"
+              @input="nameFilterCustom = true" @keydown.enter.prevent />
+            <label class="label gap-x-2">
+              <span class="label-text-alt whitespace-normal">{{ $t('install.form.source.name_filter.tips') }}</span>
+              <a class="link text-xs shrink-0" v-if="nameFilterCustom" @click.prevent="resetNameFilter">{{
+                $t('install.form.source.filter.reset')
+              }}</a>
+            </label>
+            <span class="text-xs atv-source-mismatch" v-if="nameFilterMismatch">{{
+              $t('install.form.source.name_filter.mismatch')
+            }}</span>
           </template>
         </div>
       </div>
@@ -220,6 +236,8 @@ import { toast } from "vue3-toastify";
 import {
   catalogBuilds,
   filterMatches,
+  nameMatches,
+  deriveNameFilter,
   formatBytes,
   guessSourceKind,
   listedBuilds,
@@ -239,7 +257,8 @@ export default {
       type: String,
       default: "",
     },
-    // Source to start from: {kind, url, filter, prerelease}. A URL is fetched on mount.
+    // Source to start from: {kind, url, filter, name_filter, prerelease}.
+    // A URL is fetched on mount.
     initial: {
       type: Object,
       default: null,
@@ -264,6 +283,8 @@ export default {
       failedIcons: {},
       filter: initial.filter || "",
       filterCustom: false,
+      nameFilter: initial.name_filter || "",
+      nameFilterCustom: !!initial.name_filter,
       // Saved AltStore sources, null until loaded.
       savedSources: null,
       saving: false,
@@ -289,6 +310,9 @@ export default {
     filterMismatch() {
       return !!this.filter.trim() && !filterMatches(this.preview.kind, this.filter.trim(), this.selectedBuild);
     },
+    nameFilterMismatch() {
+      return !!this.selectedBuild && !nameMatches(this.nameFilter.trim(), this.selectedBuild);
+    },
     selection() {
       if (!this.selectedBuild) return null;
       return {
@@ -296,6 +320,7 @@ export default {
         // Builds of the catalog are tracked in their own source.
         url: this.all ? this.selectedBuild.source_url : this.preview.url,
         filter: this.filter.trim(),
+        name_filter: this.preview.kind === "altstore" ? this.nameFilter.trim() : "",
         prerelease: this.preview.kind === "github" && this.prerelease,
         build: this.selectedBuild,
       };
@@ -377,6 +402,8 @@ export default {
     // written for it.
     clearPreview() {
       this.dropPreview();
+      this.nameFilter = "";
+      this.nameFilterCustom = false;
       if (this.filterCustom) {
         this.filterCustom = false;
         this.filter = "";
@@ -458,7 +485,7 @@ export default {
       // Keep the selected build, else the only build of the tracked app, else
       // the only build.
       const builds = this.preview.builds;
-      const tracked = builds.filter((b) => filterMatches("altstore", this.filter, b));
+      const tracked = builds.filter((b) => filterMatches("altstore", this.filter, b) && nameMatches(this.nameFilter, b));
       const kept =
         builds.find((b) => this.buildKey(b) === key) ||
         (tracked.length === 1 ? tracked[0] : null) ||
@@ -502,7 +529,7 @@ export default {
 
       // Keep the current filter when it still selects exactly one build.
       const tracked = this.filter
-        ? this.preview.builds.filter((b) => filterMatches(this.preview.kind, this.filter, b))
+        ? this.preview.builds.filter((b) => filterMatches(this.preview.kind, this.filter, b) && nameMatches(this.nameFilter, b))
         : [];
       const builds = this.preview.builds;
       if (tracked.length === 1) {
@@ -515,9 +542,16 @@ export default {
     selectBuild(key) {
       this.selectedId = key;
       const build = this.selectedBuild;
+      if (build && this.preview.kind === "altstore" && !this.nameFilterCustom) {
+        this.nameFilter = deriveNameFilter(build.name);
+      }
       if (build && (this.preview.kind === "altstore" || !this.filterCustom)) {
         this.filter = build.filter;
       }
+    },
+    resetNameFilter() {
+      this.nameFilterCustom = false;
+      this.nameFilter = this.selectedBuild ? deriveNameFilter(this.selectedBuild.name) : "";
     },
     resetFilter() {
       this.filterCustom = false;

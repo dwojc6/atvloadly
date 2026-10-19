@@ -229,3 +229,15 @@ test("lists the pinned build first when it is beyond the cap", () => {
   assert.deepEqual(ids(listedBuilds(builds, 9, pin("z"))), ["a", "b", "c", "d"]);
   assert.deepEqual(listedBuilds([], 2, pin("a")), []);
 });
+
+test("AltStore name regex keeps the chosen named variant across versions", async () => {
+  const { deriveNameFilter, nameMatches } = await import("../src/utils/source.mjs");
+  const name = "TikTok (Infinitok) [@ipavault]";
+  const filter = deriveNameFilter(name);
+  assert.equal(nameMatches(filter, {name, version: "47.4"}), true);
+  assert.equal(nameMatches(filter, {name: name.toLowerCase(), version: "48"}), true);
+  assert.equal(nameMatches(filter, {name: "TikTok Other"}), false);
+  assert.equal(nameMatches(filter, {name: "TikTok Infinitok @ipavault"}), false);
+  assert.equal(nameMatches("", {name}), true);
+  assert.equal(nameMatches("(", {name}), false);
+});

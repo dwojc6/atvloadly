@@ -116,8 +116,8 @@ export default {
     },
     initial() {
       if (!this.tracked) return null;
-      const { kind, url, filter, prerelease } = this.app.source;
-      return { kind, url, filter, prerelease };
+      const { kind, url, filter, name_filter, prerelease } = this.app.source;
+      return { kind, url, filter, name_filter, prerelease };
     },
     installedBuild() {
       const { version, build_name } = this.app.source;
@@ -154,12 +154,13 @@ export default {
     close() {
       this.visible = false;
     },
-    async link(markInstalled, filter = this.selection.filter) {
+    async link(markInstalled, filter = this.selection.filter, nameFilter = this.selection.name_filter) {
       const s = this.selection;
       const res = await api.linkAppSource(this.app.ID, {
         kind: s.kind,
         url: s.url,
         filter,
+        name_filter: nameFilter,
         prerelease: s.prerelease,
         auto_update: this.autoUpdate,
         installed_build_id: markInstalled && this.sourceChanged && this.alreadyInstalled ? s.build.id : "",
@@ -188,11 +189,13 @@ export default {
         // A new filter of the same source is saved only once the update installs.
         const filter = installLinkFilter(this.app.source, s, this.autoUpdate);
         if (filter !== null) {
-          await this.link(false, filter);
+          const previousNameFilter = this.sourceChanged ? s.name_filter : (this.app.source.name_filter || "");
+          await this.link(false, filter, previousNameFilter);
         }
         const res = await api.updateAppFromSource(this.app.ID, {
           build_id: s.build.id,
           filter: s.filter,
+          name_filter: s.name_filter,
         });
         this.$emit("update-started", this.app, res.data);
         this.close();

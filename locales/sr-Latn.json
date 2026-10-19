@@ -230,6 +230,11 @@
           "reset": "Resetuj",
           "mismatch": "Filter se ne podudara sa izabranom datotekom."
         },
+        "name_filter": {
+            "label": "Filter naziva aplikacije (regex)",
+            "tips": "Pored identifikatora paketa, proverava naziv aplikacije u ovom AltStore izvoru. Ažuriranja koriste najnoviji datirani unos istog naziva. Ostavite prazno za izbor samo po identifikatoru paketa.",
+            "mismatch": "Filter naziva aplikacije nije ispravan ili ne odgovara izabranoj aplikaciji."
+        },
         "bundle_id": {
           "label": "Identifikator paketa",
           "tips": "AltStore aplikacije se prate prema identifikatoru paketa."

@@ -69,7 +69,7 @@ func latestBuild(t *testing.T, u, bundleID string) source.Build {
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := feed.Latest(bundleID, false, "")
+	b, err := feed.Latest(bundleID, false, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -596,14 +596,14 @@ func TestLinkUpdateAndUntrackSource(t *testing.T) {
 		t.Fatalf("GetTrackedAppList = %d apps, %v", len(tracked), err)
 	}
 
-	target, err := PrepareSourceUpdate(installed.ID, "", "")
+	target, err := PrepareSourceUpdate(installed.ID, "", "", nil)
 	if err != nil {
 		t.Fatalf("PrepareSourceUpdate: %v", err)
 	}
 	if target.ID != installed.ID || target.IpaPath != alpha.DownloadURL || target.Source.BuildID != alpha.ID || target.Source.LatestBuildID != "" {
 		t.Fatalf("update target = %+v", target)
 	}
-	if _, err := PrepareSourceUpdate(installed.ID, "", "com.example.beta"); err == nil {
+	if _, err := PrepareSourceUpdate(installed.ID, "", "com.example.beta", nil); err == nil {
 		t.Fatal("a filter selecting another app should fail")
 	}
 	if got := mustGetApp(t, installed.ID).Source.Filter; got != "com.example.alpha" {
@@ -630,7 +630,7 @@ func TestLinkUpdateAndUntrackSource(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertSource(t, mustGetApp(t, installed.ID).Source, model.AppSource{})
-	if _, err := PrepareSourceUpdate(installed.ID, "", ""); err == nil {
+	if _, err := PrepareSourceUpdate(installed.ID, "", "", nil); err == nil {
 		t.Fatal("updating an untracked app should fail")
 	}
 }
@@ -653,7 +653,7 @@ func TestSourceKeepsFilterOfAnotherBundle(t *testing.T) {
 	if s := linked.Source; !s.AutoUpdate || s.Filter != "com.example.alpha" || s.LatestBuildID != alpha.ID {
 		t.Fatalf("linked source = %+v", s)
 	}
-	target, err := PrepareSourceUpdate(installed.ID, "", "com.example.alpha")
+	target, err := PrepareSourceUpdate(installed.ID, "", "com.example.alpha", nil)
 	if err != nil {
 		t.Fatalf("PrepareSourceUpdate: %v", err)
 	}
@@ -666,7 +666,7 @@ func TestSourceKeepsFilterOfAnotherBundle(t *testing.T) {
 	if _, err := LinkSource(installed.ID, SourceInput{Kind: source.KindAltStore, URL: u, Filter: "com.example.beta"}); err == nil || err.Error() != wantErr {
 		t.Fatalf("LinkSource with another app: %v", err)
 	}
-	if _, err := PrepareSourceUpdate(installed.ID, "", "com.example.beta"); err == nil || err.Error() != wantErr {
+	if _, err := PrepareSourceUpdate(installed.ID, "", "com.example.beta", nil); err == nil || err.Error() != wantErr {
 		t.Fatalf("PrepareSourceUpdate with another app: %v", err)
 	}
 }
@@ -676,7 +676,7 @@ type variantFeed struct{ builds []source.Build }
 
 func (f variantFeed) Preview(string, bool) (*source.Preview, error) { return nil, nil }
 
-func (f variantFeed) Latest(filter string, _ bool, _ string) (source.Build, error) {
+func (f variantFeed) Latest(filter string, _ bool, _ string, _ string) (source.Build, error) {
 	for _, b := range f.builds {
 		if source.FilterMatches(source.KindGitHub, filter, b) {
 			return b, nil
@@ -717,7 +717,7 @@ func TestPrepareSourceUpdateKeepsFilterUntilInstalled(t *testing.T) {
 	installed := createApp(t, v)
 
 	// Switching to the other variant: the new filter travels with the update...
-	target, err := PrepareSourceUpdate(installed.ID, sideloadly.ID, sideloadly.Filter)
+	target, err := PrepareSourceUpdate(installed.ID, sideloadly.ID, sideloadly.Filter, nil)
 	if err != nil {
 		t.Fatalf("PrepareSourceUpdate: %v", err)
 	}
@@ -736,7 +736,7 @@ func TestPrepareSourceUpdateKeepsFilterUntilInstalled(t *testing.T) {
 	if _, err := LinkSource(installed.ID, SourceInput{Kind: source.KindGitHub, URL: "prehakanson-art/OrivioTVAppleTV", Filter: sideload.Filter, AutoUpdate: true}); err != nil {
 		t.Fatalf("LinkSource: %v", err)
 	}
-	if _, err := PrepareSourceUpdate(installed.ID, sideloadly.ID, sideloadly.Filter); err != nil {
+	if _, err := PrepareSourceUpdate(installed.ID, sideloadly.ID, sideloadly.Filter, nil); err != nil {
 		t.Fatalf("PrepareSourceUpdate: %v", err)
 	}
 	if err := MarkSourceUpdateFailed(installed.ID, sideloadly.ID, "bundle identifier changed"); err != nil {
@@ -744,5 +744,62 @@ func TestPrepareSourceUpdateKeepsFilterUntilInstalled(t *testing.T) {
 	}
 	if s := mustGetApp(t, installed.ID).Source; s.Filter != sideload.Filter || !s.AutoUpdate || s.FailedBuildID != sideloadly.ID {
 		t.Fatalf("source after a failed switch = %+v, want the %q filter", s, sideload.Filter)
+	}
+}
+
+func TestAltStoreNameFilterPersistsAndConstrainsUpdates(t *testing.T) {
+	setupTestDB(t)
+	u, _ := serveSource(t, `{"apps":[
+ {"name":"Alpha","bundleIdentifier":"com.example.alpha","version":"1","versionDate":"2026-09-01","downloadURL":"https://example.com/alpha-1.ipa"},
+ {"name":"Alpha","bundleIdentifier":"com.example.alpha","version":"2","versionDate":"2026-10-19","downloadURL":"https://example.com/alpha-2.ipa"},
+ {"name":"Alpha Beta","bundleIdentifier":"com.example.alpha","version":"3","versionDate":"2026-10-20","downloadURL":"https://example.com/beta.ipa"}]}`)
+	feed, err := source.Fetch(source.KindAltStore, u)
+	if err != nil {
+		t.Fatal(err)
+	}
+	preview, err := feed.Preview("iPhone", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := preview.Builds[0]
+	v := model.InstalledApp{IpaName: "Alpha", UDID: "iphone", DeviceClass: "iPhone", BundleIdentifier: "com.example.alpha", Source: model.AppSource{
+		Kind: source.KindAltStore, URL: u, Filter: "com.example.alpha", NameFilter: "^Alpha$", AutoUpdate: true, BuildID: old.ID}}
+	if err := ResolveSourceInstall(&v); err != nil {
+		t.Fatal(err)
+	}
+	installed := createApp(t, v)
+	if got := mustGetApp(t, installed.ID).Source.NameFilter; got != "^Alpha$" {
+		t.Fatalf("stored name filter = %q", got)
+	}
+	checked := CheckSourceUpdates([]model.InstalledApp{installed})
+	if len(checked.Updates) != 1 || checked.Updates[0].Source.Version != "2" || checked.Updates[0].Source.NameFilter != "^Alpha$" {
+		t.Fatalf("updates = %+v", checked.Updates)
+	}
+	target, err := PrepareSourceUpdate(installed.ID, "", "", nil)
+	if err != nil || target.Source.Version != "2" {
+		t.Fatalf("prepare latest = %+v, %v", target.Source, err)
+	}
+	betaFilter := "^Alpha Beta$"
+	target, err = PrepareSourceUpdate(installed.ID, preview.Builds[2].ID, "", &betaFilter)
+	if err != nil || target.Source.NameFilter != betaFilter {
+		t.Fatalf("prepare variant = %+v, %v", target.Source, err)
+	}
+	if got := mustGetApp(t, installed.ID).Source.NameFilter; got != "^Alpha$" {
+		t.Fatalf("uninstalled variant changed stored filter: %q", got)
+	}
+	v.Source.NameFilter = "^Alpha Beta$"
+	if err := ResolveSourceInstall(&v); err == nil {
+		t.Fatal("accepted a name filter that excludes the selected build")
+	}
+	if _, err := LinkSource(installed.ID, SourceInput{Kind: source.KindAltStore, URL: u, Filter: "com.example.alpha", NameFilter: "("}); err == nil {
+		t.Fatal("saved an invalid name regex")
+	}
+	linked, err := LinkSource(installed.ID, SourceInput{Kind: source.KindAltStore, URL: u, Filter: "com.example.alpha", NameFilter: "^Alpha$", AutoUpdate: true})
+	if err != nil || linked.Source.NameFilter != "^Alpha$" {
+		t.Fatalf("link = %+v, %v", linked, err)
+	}
+	empty := ""
+	if _, err := PrepareSourceUpdate(installed.ID, old.ID, "", &empty); err != nil {
+		t.Fatalf("explicitly clear name filter: %v", err)
 	}
 }

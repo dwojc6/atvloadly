@@ -293,11 +293,11 @@ func TestGitHubPreviewSkipsOtherPlatformRelease(t *testing.T) {
 	}
 
 	// The iOS-only v2 is skipped for an Apple TV, the iOS IPA of v1 too.
-	b, err := feed.Latest(`(?i)app`, false, "AppleTV")
+	b, err := feed.Latest(`(?i)app`, false, "AppleTV", "")
 	if err != nil || b.ID != "12" {
 		t.Fatalf("Latest on AppleTV = %+v, %v", b, err)
 	}
-	b, err = feed.Latest(`(?i)app`, false, "iPhone")
+	b, err = feed.Latest(`(?i)app`, false, "iPhone", "")
 	if err != nil || b.ID != "21" {
 		t.Fatalf("Latest on iPhone = %+v, %v", b, err)
 	}
@@ -395,7 +395,7 @@ func TestGitHubLatest(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			b, err := feed.Latest(c.filter, c.pre, "AppleTV")
+			b, err := feed.Latest(c.filter, c.pre, "AppleTV", "")
 			if c.wantErr != nil {
 				if !errors.Is(err, c.wantErr) {
 					t.Fatalf("Latest = %+v, %v; want %v", b, err, c.wantErr)
@@ -408,7 +408,7 @@ func TestGitHubLatest(t *testing.T) {
 		})
 	}
 
-	if _, err := (&githubFeed{}).Latest("(", false, "AppleTV"); err == nil {
+	if _, err := (&githubFeed{}).Latest("(", false, "AppleTV", ""); err == nil {
 		t.Error("invalid filter should fail")
 	}
 }

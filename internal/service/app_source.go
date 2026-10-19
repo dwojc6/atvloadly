@@ -28,6 +28,7 @@ type SourceInput struct {
 	Kind             string `json:"kind"`
 	URL              string `json:"url"`
 	Filter           string `json:"filter"`
+	NameFilter       string `json:"name_filter"`
 	Prerelease       bool   `json:"prerelease"`
 	AutoUpdate       bool   `json:"auto_update"`
 	InstalledBuildID string `json:"installed_build_id"` // optional: "the installed version is already this build"
@@ -52,6 +53,7 @@ func sourceColumns(s model.AppSource) map[string]any {
 		"source_kind":            s.Kind,
 		"source_url":             s.URL,
 		"source_filter":          s.Filter,
+		"source_name_filter":     s.NameFilter,
 		"source_prerelease":      s.Prerelease,
 		"source_auto_update":     s.AutoUpdate,
 		"source_build_id":        s.BuildID,
@@ -227,6 +229,9 @@ func ResolveSourceInstall(v *model.InstalledApp) error {
 	if err := source.ValidateFilter(in.Kind, in.Filter); err != nil {
 		return err
 	}
+	if err := source.ValidateNameFilter(in.NameFilter); err != nil {
+		return err
+	}
 	feed, err := fetchSource(in.Kind, location)
 	if err != nil {
 		return err
@@ -235,7 +240,7 @@ func ResolveSourceInstall(v *model.InstalledApp) error {
 	if err != nil {
 		return err
 	}
-	if !source.FilterMatches(in.Kind, in.Filter, b) {
+	if !source.FilterMatches(in.Kind, in.Filter, b) || !source.NameMatches(in.NameFilter, b) {
 		return fmt.Errorf("the filter does not match %s", b.Name)
 	}
 
@@ -243,6 +248,7 @@ func ResolveSourceInstall(v *model.InstalledApp) error {
 		Kind:       in.Kind,
 		URL:        location,
 		Filter:     in.Filter,
+		NameFilter: in.NameFilter,
 		Prerelease: in.Prerelease,
 		AutoUpdate: in.AutoUpdate,
 	}
@@ -293,7 +299,7 @@ func CheckSourceUpdates(apps []model.InstalledApp) SourceCheckResult {
 		var b source.Build
 		err := f.err
 		if err == nil {
-			b, err = f.feed.Latest(s.Filter, s.Prerelease, app.DeviceClass)
+			b, err = f.feed.Latest(s.Filter, s.Prerelease, app.DeviceClass, s.NameFilter)
 		}
 		// The rate limit is logged once per run when it is hit.
 		var limited *source.RateLimitError
@@ -336,6 +342,9 @@ func LinkSource(id uint, in SourceInput) (*model.InstalledApp, error) {
 	if err := source.ValidateFilter(in.Kind, in.Filter); err != nil {
 		return nil, err
 	}
+	if err := source.ValidateNameFilter(in.NameFilter); err != nil {
+		return nil, err
+	}
 
 	s := app.Source
 	sameSource := s.Kind == in.Kind && strings.EqualFold(s.URL, location)
@@ -350,7 +359,7 @@ func LinkSource(id uint, in SourceInput) (*model.InstalledApp, error) {
 		// What was recorded about another source does not apply.
 		s = model.AppSource{}
 	}
-	s.Kind, s.URL, s.Filter, s.Prerelease, s.AutoUpdate = in.Kind, location, in.Filter, in.Prerelease, in.AutoUpdate
+	s.Kind, s.URL, s.Filter, s.NameFilter, s.Prerelease, s.AutoUpdate = in.Kind, location, in.Filter, in.NameFilter, in.Prerelease, in.AutoUpdate
 
 	if in.InstalledBuildID != "" {
 		feed, err := fetchSource(in.Kind, location)
@@ -361,7 +370,7 @@ func LinkSource(id uint, in SourceInput) (*model.InstalledApp, error) {
 		if err != nil {
 			return nil, err
 		}
-		if !source.FilterMatches(in.Kind, in.Filter, b) {
+		if !source.FilterMatches(in.Kind, in.Filter, b) || !source.NameMatches(in.NameFilter, b) {
 			return nil, fmt.Errorf("the filter does not match %s", b.Name)
 		}
 		s = installedBuild(s, b)
@@ -389,7 +398,7 @@ func UntrackSource(id uint) error {
 // build buildID of its source, or the latest build when buildID is empty. A
 // non-empty filter replaces the stored one once the update is installed, so a
 // failed switch to another variant keeps tracking the installed one.
-func PrepareSourceUpdate(id uint, buildID, filter string) (model.InstalledApp, error) {
+func PrepareSourceUpdate(id uint, buildID, filter string, nameFilter *string) (model.InstalledApp, error) {
 	app, err := GetApp(id)
 	if err != nil {
 		return model.InstalledApp{}, err
@@ -411,24 +420,31 @@ func PrepareSourceUpdate(id uint, buildID, filter string) (model.InstalledApp, e
 		}
 	}
 
+	if nameFilter != nil {
+		s.NameFilter = strings.TrimSpace(*nameFilter)
+	}
+	if err := source.ValidateNameFilter(s.NameFilter); err != nil {
+		return model.InstalledApp{}, err
+	}
 	feed, err := fetchSource(s.Kind, s.URL)
 	if err != nil {
 		return model.InstalledApp{}, err
 	}
 	var b source.Build
 	if buildID == "" {
-		b, err = feed.Latest(filter, s.Prerelease, app.DeviceClass)
+		b, err = feed.Latest(filter, s.Prerelease, app.DeviceClass, s.NameFilter)
 	} else {
 		b, err = feed.Find(buildID)
 	}
 	if err != nil {
 		return model.InstalledApp{}, err
 	}
-	if !source.FilterMatches(s.Kind, filter, b) {
+	if !source.FilterMatches(s.Kind, filter, b) || !source.NameMatches(s.NameFilter, b) {
 		return model.InstalledApp{}, fmt.Errorf("the filter does not match %s", b.Name)
 	}
 
 	app.Source.Filter = filter
+	app.Source.NameFilter = s.NameFilter
 	return ApplyBuild(*app, b), nil
 }
 

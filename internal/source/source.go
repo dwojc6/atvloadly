@@ -87,8 +87,8 @@ type Preview struct {
 type Feed interface {
 	// Preview lists the builds the user can pick for deviceClass.
 	Preview(deviceClass string, prerelease bool) (*Preview, error)
-	// Latest returns the newest build tracked by filter.
-	Latest(filter string, prerelease bool, deviceClass string) (Build, error)
+	// Latest returns the newest build tracked by filter and an optional name regex.
+	Latest(filter string, prerelease bool, deviceClass string, nameFilter string) (Build, error)
 	// Find returns the build with id, searching everything that was fetched.
 	Find(id string) (Build, error)
 }
@@ -167,6 +167,23 @@ func FilterMatches(kind, filter string, b Build) bool {
 	default:
 		return false
 	}
+}
+
+// ValidateNameFilter checks an optional app-name regular expression.
+func ValidateNameFilter(filter string) error {
+	if _, err := regexp.Compile(filter); err != nil {
+		return fmt.Errorf("invalid app name filter: %w", err)
+	}
+	return nil
+}
+
+// NameMatches applies an optional app-name constraint in addition to the bundle ID.
+func NameMatches(filter string, b Build) bool {
+	if filter == "" {
+		return true
+	}
+	re, err := regexp.Compile(filter)
+	return err == nil && re.MatchString(b.Name)
 }
 
 // FileName returns the file name of a download URL.

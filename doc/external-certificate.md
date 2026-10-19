@@ -246,6 +246,13 @@ atvloadly first downloads the selected build to the server, so the
 compatibility plan is shown before installing, like for an uploaded file. The
 IPA URL mode remains Apple ID only.
 
+AltStore sources offer an **App name filter (regex)** alongside the bundle
+identifier. Selecting an app fills an exact name pattern; edit it to constrain
+the variant tracked for updates. For libraries publishing versions as separate
+entries with the same name and bundle identifier, updates select the uniquely
+newest dated entry. Different names or tied dates remain ambiguous. Leaving the
+pattern blank tracks by bundle identifier alone.
+
 Apps installed from a source, or linked to one from the home page (**Track
 updates**), are checked for new builds like Apple ID apps. Their updates,
 manual (**Update**) or automatic (**Install updates automatically**), are
@@ -346,7 +353,7 @@ accepted in the install message of the `/ws/install` WebSocket (`signing_mode`,
 `custom_identifier`) and, except `allow_missing_entitlements`, by the MCP
 `install_app` tool (`signing_identity_id`, `remove_extensions`,
 `custom_identifier`). With an external certificate, the install message also
-accepts `source` (`kind`, `url`, `filter`, `prerelease`, `auto_update`,
+accepts `source` (`kind`, `url`, `filter`, `name_filter`, `prerelease`, `auto_update`,
 `build_id`): with a local `ipa_path` returned by `/api/sources/download`, the
 server records the build and signs that file; with a remote one, it downloads
 the build from the source.

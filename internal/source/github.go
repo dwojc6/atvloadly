@@ -246,7 +246,10 @@ func (f *githubFeed) Preview(deviceClass string, prerelease bool) (*Preview, err
 // Latest returns the IPA matching filter in the newest release that has an
 // IPA for the device. It never guesses: a release whose IPAs were renamed or
 // that has several matches is reported instead of skipped.
-func (f *githubFeed) Latest(filter string, prerelease bool, deviceClass string) (Build, error) {
+func (f *githubFeed) Latest(filter string, prerelease bool, deviceClass string, nameFilter string) (Build, error) {
+	if err := ValidateNameFilter(nameFilter); err != nil {
+		return Build{}, err
+	}
 	re, err := regexp.Compile(filter)
 	if err != nil {
 		return Build{}, fmt.Errorf("invalid filter: %w", err)
@@ -262,7 +265,7 @@ func (f *githubFeed) Latest(filter string, prerelease bool, deviceClass string) 
 		for _, b := range releaseBuilds(r) {
 			if compatible(b.Platform, want) {
 				compatibles = append(compatibles, b)
-				if re.MatchString(b.Name) {
+				if re.MatchString(b.Name) && NameMatches(nameFilter, b) {
 					matches = append(matches, b)
 				}
 			}
