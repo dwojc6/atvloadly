@@ -83,7 +83,7 @@ type Preview struct {
 	SuggestedID string  `json:"suggested_id"` // "" when the user must choose
 }
 
-// Feed is one fetched source (one network request).
+// Feed is one fetched source, including every GitHub release page.
 type Feed interface {
 	// Preview lists the builds the user can pick for deviceClass.
 	Preview(deviceClass string, prerelease bool) (*Preview, error)
@@ -124,8 +124,8 @@ func Normalize(kind, location string) (string, error) {
 	}
 }
 
-// Fetch downloads the source with exactly one HTTP request. location must be
-// normalized.
+// Fetch downloads the source, following GitHub release pagination. location
+// must be normalized.
 func Fetch(kind, location string) (Feed, error) {
 	switch kind {
 	case KindGitHub:

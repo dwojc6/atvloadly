@@ -61,3 +61,32 @@ test('an update sends the edited regex while preserving the installed regex unti
  assert.equal(updates[0].name_filter,'^New$');
  assert.equal(dialog.app.source.name_filter,'^Old$');
 });
+
+test('GitHub search reaches IPA assets beyond the initial list and searches release tags',()=>{
+ const picker=component('SourcePicker',{}, {initial:{kind:'github',prerelease:true}});
+ const builds=Array.from({length:100},(_,i)=>({id:String(i+1),name:'TwitchUnblock.ipa',version:`nightly-${327-i}`,filter:'^TwitchUnblock\\.ipa$'}));
+ builds.push({id:'tv',name:'TwitchUnblockTV.ipa',version:'tv-test-27',filter:'^TwitchUnblockTV\\.ipa$',prerelease:true});
+ picker.applyPreview({kind:'github',url:'MXFia19/TwitchUnblock',builds,suggested_id:'1'});
+ assert.equal(picker.searchable,true);
+ assert.equal(picker.matches.length,101);
+ assert.equal(picker.hiddenCount,51);
+ picker.query='TwitchUnblockTV';
+ assert.equal(picker.visibleBuilds.length,1);
+ assert.equal(picker.visibleBuilds[0].id,'tv');
+ picker.selectBuild('tv');
+ assert.equal(picker.selection.build.version,'tv-test-27');
+ assert.equal(picker.selection.prerelease,true);
+ picker.query='tv-test-27';
+ assert.equal(picker.visibleBuilds[0].id,'tv');
+});
+
+test('GitHub history reopens the newest matching saved variant instead of the recommendation',()=>{
+ const picker=component('SourcePicker',{}, {initial:{kind:'github',filter:'^TwitchUnblockTV\\.ipa$',prerelease:true}});
+ picker.applyPreview({kind:'github',url:'MXFia19/TwitchUnblock',suggested_id:'ios',builds:[
+  {id:'ios',name:'TwitchUnblock.ipa',version:'nightly-327',filter:'^TwitchUnblock\\.ipa$'},
+  {id:'tv27',name:'TwitchUnblockTV.ipa',version:'tv-test-27',filter:'tv'},
+  {id:'tv26',name:'TwitchUnblockTV.ipa',version:'tv-test-26',filter:'tv'}
+ ]});
+ assert.equal(picker.selectedId,'tv27');
+ assert.equal(picker.selection.filter,'^TwitchUnblockTV\\.ipa$');
+});

@@ -248,6 +248,7 @@
           "all": "Alla sparade källor"
         },
         "search_placeholder": "Sök appar…",
+        "release_search_placeholder": "Sök IPA-filer eller versionstaggar…",
         "more_results": "{{num}} till – förfina sökningen",
         "no_match": "Ingen app matchar sökningen",
         "save_source": "Spara källan",

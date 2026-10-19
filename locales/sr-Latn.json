@@ -248,6 +248,7 @@
           "all": "Svi sačuvani izvori"
         },
         "search_placeholder": "Pretraži aplikacije…",
+        "release_search_placeholder": "Pretražite IPA datoteke ili oznake izdanja…",
         "more_results": "Još {{num}} rezultata — precizirajte pretragu",
         "no_match": "Nijedna aplikacija ne odgovara pretrazi",
         "save_source": "Sačuvaj izvor",

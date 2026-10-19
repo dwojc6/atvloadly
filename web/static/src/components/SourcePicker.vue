@@ -109,8 +109,8 @@
         class="input input-bordered input-sm w-full"
         v-if="searchable"
         v-model="query"
-        :placeholder="$t('install.form.source.search_placeholder')"
-        :aria-label="$t('install.form.source.search_placeholder')"
+        :placeholder="$t(preview.kind === 'github' ? 'install.form.source.release_search_placeholder' : 'install.form.source.search_placeholder')"
+        :aria-label="$t(preview.kind === 'github' ? 'install.form.source.release_search_placeholder' : 'install.form.source.search_placeholder')"
         autocomplete="off"
         autocapitalize="off"
         spellcheck="false"
@@ -247,7 +247,7 @@ import {
 
 let pickerCount = 0;
 
-// Most AltStore apps listed at once; the search narrows longer lists.
+// Most builds listed at once; search includes every fetched release or app.
 const maxListedBuilds = 50;
 
 export default {
@@ -355,7 +355,7 @@ export default {
       );
     },
     searchable() {
-      return this.preview.kind === "altstore" && this.preview.builds.length > 1;
+      return this.preview.builds.length > 1;
     },
     matches() {
       return this.searchable ? searchBuilds(this.preview.builds, this.query) : this.preview.builds;
@@ -527,13 +527,17 @@ export default {
     applyPreview(preview) {
       this.preview = { ...preview, builds: preview.builds || [] };
 
-      // Keep the current filter when it still selects exactly one build.
+      // Keep the saved variant when history contains multiple releases of it.
+      // Several matching assets in the newest matching release remain ambiguous.
       const tracked = this.filter
         ? this.preview.builds.filter((b) => filterMatches(this.preview.kind, this.filter, b) && nameMatches(this.nameFilter, b))
         : [];
       const builds = this.preview.builds;
-      if (tracked.length === 1) {
-        this.selectedId = tracked[0].id;
+      const newestTracked = this.preview.kind === "github" && tracked.length
+        ? tracked.filter((build) => build.version === tracked[0].version)
+        : tracked;
+      if (newestTracked.length === 1) {
+        this.selectedId = this.buildKey(newestTracked[0]);
       } else {
         this.selectBuild(this.preview.suggested_id || (builds.length === 1 ? builds[0].id : ""));
       }

@@ -246,6 +246,13 @@ atvloadly first downloads the selected build to the server, so the
 compatibility plan is shown before installing, like for an uploaded file. The
 IPA URL mode remains Apple ID only.
 
+GitHub sources list IPA assets from every release page. Search by filename or
+release tag to find older builds; the Recommended badge is only a suggestion.
+Enable **Include pre-releases** to list and track pre-release builds, such as
+`TwitchUnblockTV.ipa` in `tv-test-*` releases. Automatic updates use the newest
+eligible release matching the saved filename filter, skipping releases that
+only contain another variant.
+
 AltStore sources offer an **App name filter (regex)** alongside the bundle
 identifier. Selecting an app fills an exact name pattern; edit it to constrain
 the variant tracked for updates. For libraries publishing versions as separate

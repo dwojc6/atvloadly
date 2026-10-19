@@ -40,7 +40,7 @@ type githubAsset struct {
 	BrowserDownloadURL string    `json:"browser_download_url"`
 }
 
-// githubFeed is the list of the latest releases of a repository.
+// githubFeed is the complete fetched release history of a repository.
 type githubFeed struct {
 	repo     string
 	releases []githubRelease
@@ -117,43 +117,50 @@ func githubDownloadRequest(repo, assetID, browserURL string) (DownloadRequest, e
 	}, nil
 }
 
-// fetchGitHub lists the latest releases of repo ("owner/repo"). It asks for
-// the largest page GitHub serves so that a stable build published before many
-// pre-releases is still seen, in a single request.
+// fetchGitHub lists every release page of repo ("owner/repo"). Requests stay
+// on the GitHub API origin rather than following URLs from pagination headers.
 func fetchGitHub(repo string) (Feed, error) {
-	req := newClient().R().
-		SetHeader("Accept", "application/vnd.github+json").
-		SetHeader("X-GitHub-Api-Version", "2022-11-28")
-	if token := githubAPIToken(); token != "" {
-		req.SetHeader("Authorization", "Bearer "+token)
-	}
-	resp, err := req.Get(fmt.Sprintf("%s/repos/%s/releases?per_page=100", apiBaseURL, repo))
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch GitHub releases: %w", err)
-	}
+	client := newClient()
+	token := githubAPIToken()
+	feed := &githubFeed{repo: repo}
+	for page := 1; ; page++ {
+		req := client.R().
+			SetHeader("Accept", "application/vnd.github+json").
+			SetHeader("X-GitHub-Api-Version", "2022-11-28")
+		if token != "" {
+			req.SetHeader("Authorization", "Bearer "+token)
+		}
+		resp, err := req.Get(fmt.Sprintf("%s/repos/%s/releases?per_page=100&page=%d", apiBaseURL, repo, page))
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch GitHub releases: %w", err)
+		}
 
-	switch resp.StatusCode() {
-	case http.StatusOK:
-	case http.StatusNotFound:
-		return nil, fmt.Errorf("repository %s %w or private", repo, ErrNotFound)
-	default:
-		if resp.StatusCode() == http.StatusForbidden || resp.StatusCode() == http.StatusTooManyRequests {
-			if err := rateLimitError(resp.Header(), time.Now()); err != nil {
-				return nil, err
+		switch resp.StatusCode() {
+		case http.StatusOK:
+		case http.StatusNotFound:
+			return nil, fmt.Errorf("repository %s %w or private", repo, ErrNotFound)
+		default:
+			if resp.StatusCode() == http.StatusForbidden || resp.StatusCode() == http.StatusTooManyRequests {
+				if err := rateLimitError(resp.Header(), time.Now()); err != nil {
+					return nil, err
+				}
 			}
+			var body struct {
+				Message string `json:"message"`
+			}
+			_ = json.Unmarshal(resp.Body(), &body)
+			return nil, fmt.Errorf("GitHub API returned %d: %s", resp.StatusCode(), body.Message)
 		}
-		var body struct {
-			Message string `json:"message"`
-		}
-		_ = json.Unmarshal(resp.Body(), &body)
-		return nil, fmt.Errorf("GitHub API returned %d: %s", resp.StatusCode(), body.Message)
-	}
 
-	var releases []githubRelease
-	if err := json.Unmarshal(resp.Body(), &releases); err != nil {
-		return nil, fmt.Errorf("invalid GitHub releases response: %w", err)
+		var releases []githubRelease
+		if err := json.Unmarshal(resp.Body(), &releases); err != nil {
+			return nil, fmt.Errorf("invalid GitHub releases response: %w", err)
+		}
+		feed.releases = append(feed.releases, releases...)
+		if !strings.Contains(resp.Header().Get("Link"), `rel="next"`) {
+			return feed, nil
+		}
 	}
-	return &githubFeed{repo: repo, releases: releases}, nil
 }
 
 // rateLimitError returns the rate limit reported by the headers of a 403 or
@@ -206,46 +213,46 @@ func releaseBuilds(r githubRelease) []Build {
 	return builds
 }
 
-// Preview returns every IPA of the newest release that has one for the device.
+// Preview lists IPA assets from every eligible release. Recommendation is
+// limited to the newest release with a compatible build; other releases remain
+// available for manual selection.
 func (f *githubFeed) Preview(deviceClass string, prerelease bool) (*Preview, error) {
 	want := DevicePlatform(deviceClass)
+	var compatibles, others, recommended []Build
 	for _, r := range f.releases {
 		if !eligible(r, prerelease) {
 			continue
 		}
-
-		var compatibles, others []Build
+		var releaseCompatibles []Build
 		for _, b := range releaseBuilds(r) {
 			if compatible(b.Platform, want) {
-				compatibles = append(compatibles, b)
+				releaseCompatibles = append(releaseCompatibles, b)
 			} else {
 				others = append(others, b)
 			}
 		}
-		if len(compatibles) == 0 {
-			continue
+		if len(recommended) == 0 && len(releaseCompatibles) > 0 {
+			recommended = releaseCompatibles
 		}
-
-		builds := append(compatibles, others...)
-		title := r.Name
-		if title == "" {
-			title = r.TagName
-		}
-		return &Preview{
-			Kind:        KindGitHub,
-			URL:         f.repo,
-			Title:       title,
-			PageURL:     r.HTMLURL,
-			Builds:      builds,
-			SuggestedID: Suggest(builds, deviceClass),
-		}, nil
+		compatibles = append(compatibles, releaseCompatibles...)
 	}
-	return nil, fmt.Errorf("%w: no release with an IPA for this device", ErrNoMatch)
+	builds := append(compatibles, others...)
+	if len(builds) == 0 {
+		return nil, fmt.Errorf("%w: no release with an IPA", ErrNoMatch)
+	}
+	return &Preview{
+		Kind:        KindGitHub,
+		URL:         f.repo,
+		Title:       f.repo,
+		PageURL:     "https://github.com/" + f.repo + "/releases",
+		Builds:      builds,
+		SuggestedID: Suggest(recommended, deviceClass),
+	}, nil
 }
 
-// Latest returns the IPA matching filter in the newest release that has an
-// IPA for the device. It never guesses: a release whose IPAs were renamed or
-// that has several matches is reported instead of skipped.
+// Latest returns the IPA in the newest eligible release matching the saved
+// filters and device platform. Releases of other variants are skipped; several
+// matching assets in the same release require a manual selection.
 func (f *githubFeed) Latest(filter string, prerelease bool, deviceClass string, nameFilter string) (Build, error) {
 	if err := ValidateNameFilter(nameFilter); err != nil {
 		return Build{}, err
@@ -291,7 +298,7 @@ func (f *githubFeed) Latest(filter string, prerelease bool, deviceClass string, 
 		case 1:
 			return matches[0], nil
 		case 0:
-			return Build{}, fmt.Errorf("%w: no IPA in %s matches %s", ErrNoMatch, r.TagName, filter)
+			continue
 		default:
 			return Build{}, fmt.Errorf("%w: %d IPAs in %s match %s; choose one", ErrAmbiguous, len(matches), r.TagName, filter)
 		}
@@ -308,5 +315,5 @@ func (f *githubFeed) Find(id string) (Build, error) {
 			}
 		}
 	}
-	return Build{}, fmt.Errorf("%w: IPA %s not found in the latest releases of %s", ErrNoMatch, id, f.repo)
+	return Build{}, fmt.Errorf("%w: IPA %s not found in the releases of %s", ErrNoMatch, id, f.repo)
 }

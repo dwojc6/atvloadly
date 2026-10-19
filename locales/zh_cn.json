@@ -249,6 +249,7 @@
                     "all": "所有已保存的来源"
                 },
                 "search_placeholder": "搜索应用…",
+                "release_search_placeholder": "搜索 IPA 文件或发布标签…",
                 "more_results": "还有 {{num}} 个结果，请细化搜索",
                 "no_match": "没有匹配的应用",
                 "save_source": "保存来源",

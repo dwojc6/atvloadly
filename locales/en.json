@@ -249,6 +249,7 @@
                     "all": "All saved sources"
                 },
                 "search_placeholder": "Search apps…",
+                "release_search_placeholder": "Search IPA files or release tags…",
                 "more_results": "{{num}} more — refine your search",
                 "no_match": "No app matches your search",
                 "save_source": "Save source",

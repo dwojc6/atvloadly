@@ -130,11 +130,11 @@ func TestFetchGitHubDecode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Preview: %v", err)
 	}
-	if p.Kind != KindGitHub || p.URL != "prehakanson-art/OrivioTVAppleTV" || p.Title != "v0.10" ||
-		p.PageURL != "https://github.com/owner/repo/releases/tag/v0.10" || p.SuggestedID != "" {
+	if p.Kind != KindGitHub || p.URL != "prehakanson-art/OrivioTVAppleTV" || p.Title != "prehakanson-art/OrivioTVAppleTV" ||
+		p.PageURL != "https://github.com/prehakanson-art/OrivioTVAppleTV/releases" || p.SuggestedID != "" {
 		t.Fatalf("unexpected preview %+v", p)
 	}
-	if len(p.Builds) != 2 || p.Builds[0].ID != "301" || p.Builds[1].ID != "302" {
+	if len(p.Builds) != 8 || p.Builds[0].ID != "301" || p.Builds[1].ID != "302" {
 		t.Fatalf("unexpected builds %+v", p.Builds)
 	}
 	b := p.Builds[0]
@@ -266,7 +266,7 @@ func TestRateLimitErrorMessage(t *testing.T) {
 	}
 }
 
-func TestGitHubPreviewSkipsOtherPlatformRelease(t *testing.T) {
+func TestGitHubPreviewListsAllPlatformsAndReleases(t *testing.T) {
 	serveReleases(t, []githubRelease{
 		release("v2", false, asset(21, "App-iOS.ipa"), asset(22, "Source.zip")),
 		release("v1", false, asset(11, "App-iOS.ipa"), asset(12, "App-tvOS.ipa")),
@@ -280,7 +280,7 @@ func TestGitHubPreviewSkipsOtherPlatformRelease(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Preview: %v", err)
 	}
-	if p.Title != "v1" || p.SuggestedID != "12" || len(p.Builds) != 2 || p.Builds[0].ID != "12" || p.Builds[1].ID != "11" {
+	if p.Title != "owner/repo" || p.SuggestedID != "12" || len(p.Builds) != 3 || p.Builds[0].ID != "12" || p.Builds[1].ID != "21" || p.Builds[2].ID != "11" {
 		t.Fatalf("AppleTV preview = %+v", p)
 	}
 
@@ -288,7 +288,7 @@ func TestGitHubPreviewSkipsOtherPlatformRelease(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Preview: %v", err)
 	}
-	if p.Title != "v2" || p.SuggestedID != "21" || len(p.Builds) != 1 {
+	if p.Title != "owner/repo" || p.SuggestedID != "21" || len(p.Builds) != 3 {
 		t.Fatalf("iPhone preview = %+v", p)
 	}
 
@@ -339,12 +339,12 @@ func TestGitHubLatest(t *testing.T) {
 			wantID:   "302",
 		},
 		{
-			name: "renamed files need attention",
+			name: "newer releases of other variants are skipped",
 			releases: append([]githubRelease{
 				release("v0.11", false, asset(401, "OrivioTV-V10-Beta.ipa"), asset(402, "OrivioTV-V10-Stable.ipa")),
 			}, orivioReleases()...),
-			filter:  sideload,
-			wantErr: ErrNoMatch,
+			filter: sideload,
+			wantID: "301",
 		},
 		{
 			name: "ambiguity resolved by platform",
@@ -432,5 +432,64 @@ func TestGitHubFind(t *testing.T) {
 	}
 	if _, err := feed.Find("999"); !errors.Is(err, ErrNoMatch) {
 		t.Errorf("Find(999) = %v, want ErrNoMatch", err)
+	}
+}
+
+func TestGitHubFetchAllReleasePages(t *testing.T) {
+	pages := 0
+	serveGitHub(t, func(w http.ResponseWriter, r *http.Request) {
+		pages++
+		if r.URL.Query().Get("page") != strconv.Itoa(pages) || r.URL.Path != "/repos/owner/repo/releases" {
+			t.Errorf("unexpected request %s", r.URL)
+		}
+		if pages == 1 {
+			// Use an unrelated origin in Link: only the relation drives pagination.
+			w.Header().Set("Link", `<https://example.invalid/releases?page=2>; rel="next"`)
+			_ = json.NewEncoder(w).Encode([]githubRelease{release("nightly-327", false, asset(327, "TwitchUnblock.ipa"))})
+		} else {
+			_ = json.NewEncoder(w).Encode([]githubRelease{release("tv-test-27", true, asset(27, "TwitchUnblockTV.ipa")), {TagName: "draft", Draft: true, Assets: []githubAsset{asset(99, "Draft.ipa")}}})
+		}
+	})
+	feed, err := Fetch(KindGitHub, "owner/repo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pages != 2 {
+		t.Fatalf("requests = %d, want both release pages", pages)
+	}
+	stable, err := feed.Preview("AppleTV", false)
+	if err != nil || len(stable.Builds) != 1 {
+		t.Fatalf("stable preview = %+v, %v", stable, err)
+	}
+	preview, err := feed.Preview("AppleTV", true)
+	if err != nil || len(preview.Builds) != 2 || preview.Builds[1].Name != "TwitchUnblockTV.ipa" || !preview.Builds[1].Prerelease {
+		t.Fatalf("all-release preview = %+v, %v", preview, err)
+	}
+	if b, err := feed.Find("27"); err != nil || b.Version != "tv-test-27" {
+		t.Fatalf("Find older release = %+v, %v", b, err)
+	}
+	filter := preview.Builds[1].Filter
+	if b, err := feed.Latest(filter, true, "AppleTV", ""); err != nil || b.ID != "27" {
+		t.Fatalf("Latest TV variant = %+v, %v", b, err)
+	}
+	if _, err := feed.Latest(filter, false, "AppleTV", ""); !errors.Is(err, ErrNoMatch) {
+		t.Fatalf("disabled pre-releases: %v", err)
+	}
+}
+
+func TestGitHubPaginationDoesNotReturnPartialHistory(t *testing.T) {
+	serveGitHub(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("page") == "1" {
+			w.Header().Set("Link", `<https://api.github.com/repos/owner/repo/releases?page=2>; rel="next"`)
+			_ = json.NewEncoder(w).Encode([]githubRelease{release("v2", false, asset(2, "App.ipa"))})
+			return
+		}
+		w.Header().Set("X-RateLimit-Remaining", "0")
+		w.WriteHeader(http.StatusForbidden)
+	})
+	feed, err := Fetch(KindGitHub, "owner/repo")
+	var limited *RateLimitError
+	if feed != nil || !errors.As(err, &limited) {
+		t.Fatalf("Fetch = %v, %v; want pagination rate-limit failure", feed, err)
 	}
 }
