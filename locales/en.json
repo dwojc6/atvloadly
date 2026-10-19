@@ -651,6 +651,9 @@
             "step6": "Refresh works on the local network only: it cannot refresh properly over VPN or Tailscale."
         },
         "form": {
+            "manual_hint": "Choose a discovered device above, or enter its IPv4 address and remote-pairing port below. Keep the iPhone unlocked.",
+            "ip": "IP address",
+            "port": "Port",
             "device_label": "Select Corresponding Device",
             "device_placeholder": "Please select a device",
             "device_unlock": "The iPhone must be unlocked to be discovered",
@@ -662,6 +665,7 @@
         "toast": {
             "import_success": "Import successful",
             "import_failed": "Import failed: {{msg}}",
+            "invalid_address": "Enter a valid IPv4 address and a port between 1 and 65535.",
             "load_devices_failed": "Failed to load device list: {{msg}}"
         },
         "dialog": {

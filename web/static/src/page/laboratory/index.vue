@@ -39,7 +39,7 @@
               <select
                 class="select select-bordered join-item flex-1 min-w-0"
                 v-model="selectedDevice"
-                required
+                :disabled="loading"
               >
                 <option value="" disabled>{{ $t("laboratory.form.device_placeholder") }}</option>
                 <option v-for="device in devices" :key="device.id" :value="device.id">
@@ -49,7 +49,7 @@
               <button
                 class="btn join-item"
                 @click.prevent="loadDevices"
-                :disabled="loading"
+                :disabled="loading || loadingDevices"
                 :title="$t('laboratory.form.refresh_devices')"
               >
                 <div class="w-6 h-6" :class="{ 'animate-spin': loadingDevices }">
@@ -60,6 +60,20 @@
             <label class="label">
               <span class="label-text-alt">{{ $t("laboratory.form.device_unlock") }}</span>
             </label>
+          </div>
+          <p class="text-sm opacity-70">{{ $t('laboratory.form.manual_hint') }}</p>
+          <div class="flex flex-col sm:flex-row gap-3">
+            <div class="form-control flex-1">
+              <label class="label" for="pair-device-ip"><span class="label-text">{{ $t('laboratory.form.ip') }}</span></label>
+              <input id="pair-device-ip" type="text" class="input input-bordered w-full"
+                v-model.trim="deviceIP" :disabled="loading" placeholder="192.168.1.7"
+                autocomplete="off" spellcheck="false" required @input="selectedDevice = ''" />
+            </div>
+            <div class="form-control sm:w-32">
+              <label class="label" for="pair-device-port"><span class="label-text">{{ $t('laboratory.form.port') }}</span></label>
+              <input id="pair-device-port" type="number" class="input input-bordered w-full"
+                v-model="devicePort" :disabled="loading" min="1" max="65535" step="1" required @input="selectedDevice = ''" />
+            </div>
           </div>
 
         </form>
@@ -104,13 +118,25 @@ export default {
       confirmDialogVisible: false,
       devices: [],
       selectedDevice: "",
+      deviceIP: "",
+      devicePort: "49152",
     };
+  },
+  watch: {
+    selectedDevice(id) {
+      const device = this.devices.find((item) => item.id === id);
+      if (device) {
+        this.deviceIP = device.ip;
+        this.devicePort = String(device.port || 49152);
+      }
+    },
   },
   mounted() {
     this.loadDevices();
   },
   methods: {
     async loadDevices() {
+      if (this.loadingDevices) return;
       this.loadingDevices = true;
       try {
         const res = await api.scanWireless();
@@ -140,7 +166,13 @@ export default {
       if (!this.validateForm("#form")) {
         return;
       }
-      
+      const parts = this.deviceIP.split('.');
+      const port = Number(this.devicePort);
+      if (parts.length !== 4 || !parts.every((part) => /^\d{1,3}$/.test(part) && Number(part) <= 255)
+          || !Number.isInteger(port) || port < 1 || port > 65535) {
+        toast.error(this.$t('laboratory.toast.invalid_address'));
+        return;
+      }
       this.loading = true;
       try {
         let formData = new FormData();
@@ -150,20 +182,16 @@ export default {
         if (override) {
             formData.append("override", "true");
         }
-        if (this.selectedDevice) {
-            const selectedDevice = this.devices.find(d => d.id === this.selectedDevice);
-            if (selectedDevice?.ip) {
-                formData.append("ip", selectedDevice.ip);
-            }
-            if (selectedDevice?.port) {
-                formData.append("port", selectedDevice.port);
-            }
-        }
-        
+        formData.append("ip", this.deviceIP);
+        formData.append("port", String(port));
+
         await api.importPair(formData);
         toast.success(this.$t("laboratory.toast.import_success"));
         document.getElementById("form").reset();
         this.files = [];
+        this.selectedDevice = "";
+        this.deviceIP = "";
+        this.devicePort = "49152";
         this.confirmDialogVisible = false;
       } catch (error) {
         console.error(error);

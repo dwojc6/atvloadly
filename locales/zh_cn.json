@@ -651,6 +651,9 @@
             "step6": "刷新仅支持局域网，通过 VPN/Tailscale 无法正常刷新"
         },
         "form": {
+            "manual_hint": "在上方选择已发现的设备，或在下方输入 IPv4 地址和远程配对端口。请保持 iPhone 解锁。",
+            "ip": "IP 地址",
+            "port": "端口",
             "device_label": "选择对应设备",
             "device_placeholder": "请选择一个设备",
             "device_unlock": "iPhone 需要先解锁屏幕，才能被发现",
@@ -662,6 +665,7 @@
         "toast": {
             "import_success": "导入成功",
             "import_failed": "导入失败: {{msg}}",
+            "invalid_address": "请输入有效的 IPv4 地址及 1 至 65535 之间的端口。",
             "load_devices_failed": "加载设备列表失败: {{msg}}"
         },
         "dialog": {

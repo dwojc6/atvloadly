@@ -647,6 +647,9 @@
       "step6": "Uppdatering fungerar bara i det lokala nätverket: den kan inte uppdateras korrekt via VPN eller Tailscale."
     },
     "form": {
+      "manual_hint": "Välj en upptäckt enhet ovan, eller ange dess IPv4-adress och port för fjärrparkoppling nedan. Håll din iPhone upplåst.",
+      "ip": "IP-adress",
+      "port": "Port",
       "device_label": "Välj motsvarande enhet",
       "device_placeholder": "Välj en enhet",
       "device_unlock": "Din iPhone måste vara upplåst för att hittas",
@@ -658,6 +661,7 @@
     "toast": {
       "import_success": "Importen lyckades",
       "import_failed": "Importen misslyckades: {{msg}}",
+      "invalid_address": "Ange en giltig IPv4-adress och en port mellan 1 och 65535.",
       "load_devices_failed": "Kunde inte läsa in enhetslistan: {{msg}}"
     },
     "dialog": {

@@ -27,12 +27,11 @@ type Device struct {
 
 func (d *Device) ParseDeviceClass() {
 	if d.DeviceClass == "" {
-		if strings.HasSuffix(d.Name, "AppleTV") {
-			d.DeviceClass = string(DeviceClassAppleTV)
-		} else if strings.HasSuffix(d.Name, "iPad") {
-			d.DeviceClass = string(DeviceClassiPad)
-		} else if strings.HasSuffix(d.Name, "iPhone") {
+		name := strings.ToLower(d.Name)
+		if strings.Contains(name, "iphone") {
 			d.DeviceClass = string(DeviceClassiPhone)
+		} else if strings.Contains(name, "ipad") {
+			d.DeviceClass = string(DeviceClassiPad)
 		} else {
 			d.DeviceClass = string(DeviceClassAppleTV)
 		}

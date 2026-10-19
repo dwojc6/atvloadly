@@ -650,6 +650,9 @@
       "step6": "Osvežavanje radi samo na lokalnoj mreži: preko VPN-a ili Tailscale-a ne može pravilno da se osveži."
     },
     "form": {
+      "manual_hint": "Izaberite otkriveni uređaj iznad ili unesite IPv4 adresu i port za udaljeno uparivanje ispod. Držite iPhone otključanim.",
+      "ip": "IP adresa",
+      "port": "Port",
       "device_label": "Izaberite odgovarajući uređaj",
       "device_placeholder": "Izaberite uređaj",
       "device_unlock": "iPhone mora biti otključan da bi bio otkriven",
@@ -661,6 +664,7 @@
     "toast": {
       "import_success": "Uvoz je uspeo",
       "import_failed": "Uvoz nije uspeo: {{msg}}",
+      "invalid_address": "Unesite ispravnu IPv4 adresu i port između 1 i 65535.",
       "load_devices_failed": "Učitavanje liste uređaja nije uspelo: {{msg}}"
     },
     "dialog": {
