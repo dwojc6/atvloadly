@@ -5,12 +5,15 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/json"
 	"image"
 	"image/color"
 	"image/png"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/iineva/bom/pkg/asset"
@@ -213,4 +216,100 @@ func catalogImageData(t *testing.T, data []byte, name string) []byte {
 		t.Fatal(err)
 	}
 	return result
+}
+
+func TestCustomIconFocusLayerStride(t *testing.T) {
+	original, err := os.ReadFile("testdata/custom-icon/Assets.car")
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := catalogImageData(t, original, "App Icon/Background/Content")
+	if string(source[24:28]) != " 8AG" {
+		t.Fatal("fixture must exercise grayscale icon layers")
+	}
+	width := binary.LittleEndian.Uint32(source[12:16])
+	if iconRowStride(t, source) == width*4 {
+		t.Fatal("fixture must have a different stride from replacement BGRA pixels")
+	}
+	// Encode a widescreen RGB PNG, like an uploaded TV banner.
+	banner := image.NewRGBA(image.Rect(0, 0, 160, 90))
+	for y := 0; y < 90; y++ {
+		for x := 0; x < 160; x++ {
+			banner.SetRGBA(x, y, color.RGBA{R: 30, G: 100, B: 200, A: 255})
+		}
+	}
+	var encoded bytes.Buffer
+	if err := png.Encode(&encoded, banner); err != nil {
+		t.Fatal(err)
+	}
+	decoded, err := DecodeCustomIcon("data:image/png;base64," + base64.StdEncoding.EncodeToString(encoded.Bytes()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	updated, err := replaceCatalogIcon(original, "App Icon", decoded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"App Icon/Background/Content", "App Icon/Front/Content"} {
+		data := catalogImageData(t, updated, name)
+		width := binary.LittleEndian.Uint32(data[12:16])
+		if got := iconRowStride(t, data); got != width*4 {
+			t.Errorf("%s: row stride %d, want %d", name, got, width*4)
+		}
+	}
+	t.Run("CoreUI renders focused background", func(t *testing.T) {
+		if runtime.GOOS != "darwin" {
+			t.Skip("Apple CoreUI validation requires macOS")
+		}
+		if err := exec.Command("xcrun", "--find", "assetutil").Run(); err != nil {
+			t.Skip("Apple assetutil is unavailable")
+		}
+		path := filepath.Join(t.TempDir(), "Assets.car")
+		if err := os.WriteFile(path, updated, 0600); err != nil {
+			t.Fatal(err)
+		}
+		output, err := exec.Command("xcrun", "assetutil", "--info", path).CombinedOutput()
+		if err != nil {
+			t.Fatalf("CoreUI could not read catalog: %s: %v", output, err)
+		}
+		var assets []struct {
+			Name        string
+			AssetType   string
+			PixelWidth  int
+			PixelHeight int
+		}
+		if err := json.Unmarshal(output, &assets); err != nil {
+			t.Fatalf("CoreUI reported a rendering error: %s", output)
+		}
+		found := false
+		for _, a := range assets {
+			if a.Name == "App Icon/Background/Content" {
+				found = true
+				if a.AssetType != "Image" || a.PixelWidth != 400 || a.PixelHeight != 240 {
+					t.Fatalf("focused background failed to materialize: %+v", a)
+				}
+			}
+		}
+		if !found {
+			t.Fatal("focused background is missing")
+		}
+	})
+}
+
+func iconRowStride(t *testing.T, data []byte) uint32 {
+	t.Helper()
+	end := 184 + int(binary.LittleEndian.Uint32(data[168:172]))
+	for pos := 184; pos+8 <= end; {
+		tag, size := binary.LittleEndian.Uint32(data[pos:]), int(binary.LittleEndian.Uint32(data[pos+4:]))
+		pos += 8
+		if size > end-pos {
+			t.Fatal("invalid test rendition metadata")
+		}
+		if tag == 1007 && size == 4 {
+			return binary.LittleEndian.Uint32(data[pos:])
+		}
+		pos += size
+	}
+	t.Fatal("row stride metadata is missing")
+	return 0
 }

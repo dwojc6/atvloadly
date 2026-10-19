@@ -1,8 +1,10 @@
 # Synthetic tvOS catalog
 
 `Assets.car` was compiled from the accompanying asset catalog with Apple's
-Xcode asset compiler. The original pixels are solid red. It contains a two-layer
-primary icon with a nonstandard background name and an unrelated image.
+Xcode asset compiler. It contains a two-layer primary icon with a nonstandard background name,
+a grayscale background with a padded row stride, an alpha foreground, and an
+unrelated red image. The grayscale layer exercises the focused-icon path:
+replacing its pixels with BGRA must also update the row-stride metadata.
 No application artwork or signing material is included.
 
 Regenerate on a Mac with Xcode:

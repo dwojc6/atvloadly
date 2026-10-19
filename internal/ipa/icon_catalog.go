@@ -175,6 +175,24 @@ func replaceCatalogIcon(data []byte, name string, img image.Image) ([]byte, erro
 		// CSI pixel format tags are stored in reverse order (ARGB -> BGRA).
 		copy(replacement[24:28], "BGRA")
 		le.PutUint32(replacement[8:12], le.Uint32(replacement[8:12])&^0xf8)
+		// The original may use grayscale pixels or padded scanlines. This
+		// replacement is tightly packed BGRA, so update CoreUI's row stride
+		// alongside the pixel format. A stale stride makes focused layer
+		// images fail to materialize even when the flattened icon works.
+		for pos := 184; pos+8 <= headerLen; {
+			tag, size := le.Uint32(replacement[pos:]), int(le.Uint32(replacement[pos+4:]))
+			pos += 8
+			if size > headerLen-pos {
+				return fmt.Errorf("invalid icon bitmap metadata")
+			}
+			if tag == 1007 {
+				if size != 4 {
+					return fmt.Errorf("invalid icon row stride metadata")
+				}
+				le.PutUint32(replacement[pos:pos+4], uint32(width*4))
+			}
+			pos += size
+		}
 		le.PutUint32(replacement[28:32], 1) // sRGB
 		le.PutUint32(replacement[180:184], uint32(16+len(pixels)))
 		pixelHeader := make([]byte, 16)
