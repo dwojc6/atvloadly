@@ -169,12 +169,8 @@
         $t("install.form.source.no_match")
       }}</span>
 
-      <div class="collapse collapse-arrow atv-source-advanced" v-if="selectedBuild">
-        <input type="checkbox" :aria-label="$t('install.form.source.advanced')" />
-        <div class="collapse-title text-sm font-medium">
-          {{ $t("install.form.source.advanced") }}
-        </div>
-        <div class="collapse-content">
+      <div class="atv-source-advanced p-3" v-if="preview.kind === 'github' || selectedBuild">
+        <div>
           <template v-if="preview.kind === 'github'">
             <label class="label gap-x-2">
               <span class="label-text">{{ $t("install.form.source.filter.label") }}</span>
