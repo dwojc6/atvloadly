@@ -215,7 +215,7 @@
               />
             </div>
 
-            <CustomIconPicker v-model="form.custom_icon" :disabled="loading"
+            <CustomIconPicker :key="iconPickerKey" v-model="form.custom_icon" :disabled="loading"
               :is-tv="isAppleTV(device)" @busy="iconLoading = $event" />
 
             <div class="form-control">
@@ -539,7 +539,7 @@ import {
   needsServerDownload,
   splitDataUrl,
 } from "@/utils/download.mjs";
-import { guessSourceKind } from "@/utils/source.mjs";
+import { filterMatches, guessSourceKind, nameMatches } from "@/utils/source.mjs";
 import JSZip from "jszip";
 import SigningIssueList from "@/components/SigningIssueList.vue";
 import SigningPlan from "@/components/SigningPlan.vue";
@@ -589,6 +589,7 @@ export default {
       device: {},
       loading: false,
       iconLoading: false,
+      iconPickerKey: 0,
       websock: null,
       // Generation of the current install attempt. Every release of the
       // attempt bumps it, and guards after each await compare against it so
@@ -1235,9 +1236,12 @@ export default {
       // A source build names its own bundle identifier, which the placeholder
       // previews for an Apple ID install too.
       this.ipaBundleIdentifier = bundleId || "";
-      const isSameSource = (a) => a.udid === this.device.udid && a.source.url.toLowerCase() === url;
+      const isSameSource = (a) => a.udid === this.device.udid &&
+        a.source.kind === selection.kind && a.source.url.toLowerCase() === url &&
+        filterMatches(a.source.kind, a.source.filter, selection.build) &&
+        nameMatches(a.source.name_filter || "", selection.build);
       const candidates = this.installedApps.filter(isSameSource).concat(
-        bundleId ? this.installedApps.filter((a) => a.bundle_identifier === bundleId) : [],
+        bundleId ? this.installedApps.filter((a) => a.udid === this.device.udid && a.bundle_identifier === bundleId) : [],
       );
       // The same IPA may be installed twice, with and without a custom bundle
       // identifier. Prefer the record matching the identifier already typed,
@@ -1453,6 +1457,12 @@ export default {
       // Installation successful.
       if (line.indexOf("Installation Succeeded") !== -1) {
         _this.onInstallFinished();
+        _this.form.custom_name = "";
+        _this.form.custom_icon = "";
+        _this.prefilled.custom_name = "";
+        _this.prefilled.custom_icon = "";
+        // Remount the picker to clear its file input and App Store search state.
+        _this.iconPickerKey++;
         _this.certRevoke.payload = null;
         toast.success(this.$t("install.toast.install_success"));
         return;

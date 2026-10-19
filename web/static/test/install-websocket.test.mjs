@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import vm from "node:vm";
 import { createSigningReportStream } from "../src/utils/signing-report.mjs";
+import { filterMatches, nameMatches } from "../src/utils/source.mjs";
 import {
   installFailureMessage,
   needsCertificateReset,
@@ -42,7 +43,7 @@ function page(upload = async () => [{ name: "app.ipa", path: "/tmp/app.ipa" }], 
   };
   const context = vm.createContext({
     SigningIssueList: {}, SigningPlan: {}, SourcePicker: {}, CustomIconPicker: {},
-    WebSocket, createSigningReportStream, FormData, JSZip,
+    WebSocket, createSigningReportStream, FormData, JSZip, filterMatches, nameMatches,
     parseBundleIdFromPlist: () => ipaBundleId,
     formatInstallFailureMessage: installFailureMessage,
     needsCertificateReset, pickRevocableCertificates,
@@ -63,7 +64,7 @@ function page(upload = async () => [{ name: "app.ipa", path: "/tmp/app.ipa" }], 
     isExternal: false, installMode: "link", ipaUrl: "https://example.com/app.ipa",
     device: { connection: "RPPairing" }, reportStream: createSigningReportStream(),
     // created() is not run: assign what it initializes before the tests use it.
-    prefilled: { custom_name: "", custom_identifier: "" },
+    prefilled: { custom_name: "", custom_identifier: "", custom_icon: "" },
     $t: (key) => key, validateForm: () => true, startUpdateLog() {}, stopUpdateLog() {},
   });
   component.mounted?.call(state);
@@ -416,4 +417,83 @@ test("sends the custom icon with the install and waits while it is loading", asy
   sockets[0].open();
   await pending;
   assert.equal(JSON.parse(sockets[0].sent[0].d).custom_icon, state.form.custom_icon);
+});
+
+test("a successful install clears custom appearance before the next IPA", async () => {
+  const { state, sockets } = page();
+  state.form.custom_name = "First App";
+  state.form.custom_icon = "data:image/png;base64,FIRST";
+  state.prefilled.custom_name = "Old prefill";
+  state.prefilled.custom_icon = "data:image/png;base64,OLD";
+  const first = state.onSubmit();
+  sockets[0].open();
+  await first;
+  const sent = JSON.parse(sockets[0].sent[0].d);
+  assert.equal(sent.custom_name, "First App");
+  assert.equal(sent.custom_icon, "data:image/png;base64,FIRST");
+  const pickerKey = state.iconPickerKey;
+  sockets[0].onmessage({ data: "Installation Succeeded" });
+  assert.equal(state.form.custom_name, "");
+  assert.equal(state.form.custom_icon, "");
+  assert.equal(state.prefilled.custom_name, "");
+  assert.equal(state.prefilled.custom_icon, "");
+  assert.equal(state.iconPickerKey, pickerKey + 1);
+
+  state.ipaUrl = "https://example.com/another.ipa";
+  const next = state.onSubmit();
+  sockets[1].open();
+  await next;
+  const nextSent = JSON.parse(sockets[1].sent[0].d);
+  assert.equal(nextSent.custom_name, "");
+  assert.equal(nextSent.custom_icon, "");
+});
+
+test("a failed install preserves custom appearance for retry", async () => {
+  const { state, sockets } = page();
+  state.form.custom_name = "Retry App";
+  state.form.custom_icon = "data:image/png;base64,RETRY";
+  const pickerKey = state.iconPickerKey;
+  const pending = state.onSubmit();
+  sockets[0].open();
+  await pending;
+  sockets[0].onmessage({ data: "Installation Failed!" });
+  assert.equal(state.form.custom_name, "Retry App");
+  assert.equal(state.form.custom_icon, "data:image/png;base64,RETRY");
+  assert.equal(state.iconPickerKey, pickerKey);
+});
+
+test("another app in the same AltStore library does not prefill its name or icon", () => {
+  const { state } = page();
+  state.device.udid = "DEVICE";
+  state.accounts = [{ email: "user@example.com" }];
+  state.installedApps = [{
+    udid: "DEVICE", account: "user@example.com", signing_mode: "apple_id",
+    bundle_identifier: "com.example.first", custom_name: "First App",
+    custom_icon: "data:image/png;base64,FIRST",
+    source: { kind: "altstore", url: "https://example.com/library.json", filter: "com.example.first" },
+  }];
+  state.onSourceSelection({
+    kind: "altstore", url: "https://example.com/library.json", filter: "com.example.second",
+    build: { id: "second", name: "Second App", bundle_id: "com.example.second" },
+  });
+  assert.equal(state.form.custom_name, "");
+  assert.equal(state.form.custom_icon, "");
+});
+
+test("reinstalling the selected app can still prefill its saved appearance", () => {
+  const { state } = page();
+  state.device.udid = "DEVICE";
+  state.accounts = [{ email: "user@example.com" }];
+  state.installedApps = [{
+    udid: "DEVICE", account: "user@example.com", signing_mode: "apple_id",
+    bundle_identifier: "com.example.first", custom_name: "First App",
+    custom_icon: "data:image/png;base64,FIRST",
+    source: { kind: "altstore", url: "https://example.com/library.json", filter: "com.example.first" },
+  }];
+  state.onSourceSelection({
+    kind: "altstore", url: "https://example.com/library.json", filter: "com.example.first",
+    build: { id: "first-new", name: "First App", bundle_id: "com.example.first" },
+  });
+  assert.equal(state.form.custom_name, "First App");
+  assert.equal(state.form.custom_icon, "data:image/png;base64,FIRST");
 });

@@ -293,7 +293,7 @@
               "use_icon": "Use this icon",
               "view_store": "View on App Store",
               "search_failed": "Could not load Apple artwork. Try again.",
-              "label": "App icon (optional)",
+              "label": "App Icon (optional)",
               "tips": "Choose a PNG or JPEG up to 4 MB and 4096 × 4096 pixels. The image is center-cropped to fit. Apple TV uses a flat image in its layered icon. Your choice is kept for refreshes and source updates.",
               "preview": "Selected app icon",
               "reset": "Use original icon",
